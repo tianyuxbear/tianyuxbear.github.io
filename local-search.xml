@@ -4,6 +4,48 @@
   
   
   <entry>
+    <title></title>
+    <link href="/service.html"/>
+    <url>/service.html</url>
+    
+    <content type="html"><![CDATA[<p><img src="https://sachi.oss-cn-chengdu.aliyuncs.com/imgForTypora/Typora-PicGo-AliyunOSS.png" alt="Typora-PicGo-AliyunOSS"> </p>]]></content>
+    
+    
+    
+  </entry>
+  
+  
+  
+  <entry>
+    <title>Typora配置图床：PicGo + 阿里云OSS</title>
+    <link href="/typora-picgo-aliyunOSS.html"/>
+    <url>/typora-picgo-aliyunOSS.html</url>
+    
+    <content type="html"><![CDATA[<p>平时记笔记或写博客时，经常需要插入图片，往往图片在Typora中以本地文件的路径插入的。当markdown文件移动到云端等其他主机时，文件中图片就会获取不到，利用PicGo将图片自动上传的云端并获取对应URL即可解决此问题。</p><ul><li>考虑到国内访问速度的问题，没有使用Github repository进行配置。</li><li>考虑到Gitee的仓库认证繁琐，没有使用Gitee repository进行配置。</li></ul><p>本文的云存储服务采用<strong>阿里云OSS</strong>,一是国内访问速度快，二是物美价廉(40G一年9块钱，着实很划算)。</p><h3 id="下载安装PicGo"><a href="#下载安装PicGo" class="headerlink" title="下载安装PicGo"></a>下载安装PicGo</h3><p>参考：<a href="https://picgo.github.io/PicGo-Doc/zh/guide/#picgo-is-here">PicGo指南</a></p><p>点开链接，往下翻动，随便选一个下载源点进去。</p><p><img src="https://sachi.oss-cn-chengdu.aliyuncs.com/imgForTypora/image-20230531211046814.png" alt="image-20230531211046814">   </p><p>以我的实际安装为例，我通过Github Release下载，选择x64版本(对应电脑版本)安装包下载：</p><p><img src="https://sachi.oss-cn-chengdu.aliyuncs.com/imgForTypora/image-20230531211745869.png" alt="image-20230531211745869"> </p><p>下载完安装包后，正常安装即可。记得留意一下安装的位置，默认是安装到C盘，建议手动更改到D盘，以免Typora启动PicGo时出现权限问题。</p><blockquote><p>留意一下PicGo的安装路径，后续将配置在Typora中。</p></blockquote><h3 id="购买阿里云OSS云存储服务"><a href="#购买阿里云OSS云存储服务" class="headerlink" title="购买阿里云OSS云存储服务"></a>购买阿里云OSS云存储服务</h3><p>注册登录阿里云账号：<a href="https://cn.aliyun.com/">阿里云官方网站</a></p><p>登录成功后，搜索框输入<code>对象存储OSS</code> </p><p><img src="https://sachi.oss-cn-chengdu.aliyuncs.com/imgForTypora/image-20230531212514202.png" alt="image-20230531212514202"> </p><p>跳转到：</p><p><img src="https://sachi.oss-cn-chengdu.aliyuncs.com/imgForTypora/image-20230531212744872.png" alt="image-20230531212744872"> </p><p>点击立即购买即可，后续一路默认就可以。</p><p><img src="https://sachi.oss-cn-chengdu.aliyuncs.com/imgForTypora/image-20230531213015753.png" alt="image-20230531213015753"> </p><p>比较尴尬的是我不能再次购买，阿里云OSS配置教程请参考:</p><p><a href="https://developer.aliyun.com/article/787128">使用阿里云对象存储OSS+PicGo搭建图床</a></p><h3 id="PicGo设置阿里云OSS图床"><a href="#PicGo设置阿里云OSS图床" class="headerlink" title="PicGo设置阿里云OSS图床"></a>PicGo设置阿里云OSS图床</h3><p>打开PicGo–&gt;图床设置–&gt;阿里云OSS设置：</p><p><img src="https://sachi.oss-cn-chengdu.aliyuncs.com/imgForTypora/image-20230531213513650.png" alt="image-20230531213513650"> </p><p>KeyID和KeySecret可以在 对象存储OSS控制台–&gt;概览–&gt;常用入口–&gt;Access Key处再次查看：</p><p><img src="https://sachi.oss-cn-chengdu.aliyuncs.com/imgForTypora/image-20230531213927785.png" alt="image-20230531213927785"> </p><p><img src="https://sachi.oss-cn-chengdu.aliyuncs.com/imgForTypora/image-20230531214011214.png" alt="image-20230531214011214"> </p><p>Bucket 即创建的bucket名称。</p><p>确认存储区域：<code>oss-cn-城市名称</code>，如成都对应<code>oss-cn-chengdu</code>。</p><p>指定存储路径：bucket下创建的文件夹路径，切记以<code>/</code>结尾。</p><p>设置自定义域名：可选，有的话填一下，没有就算了。</p><p>点击确定，设置为默认图床。</p><p>至此阿里云OSS存储和PicGo的结合已经完成，只差最后一步：</p><p>将PicGo配置到Typora中。</p><h3 id="Typora配置PicGo自动上传图片"><a href="#Typora配置PicGo自动上传图片" class="headerlink" title="Typora配置PicGo自动上传图片"></a>Typora配置PicGo自动上传图片</h3><p>打开Typora,点击文件–&gt;偏好设置–&gt;图像：</p><p><img src="https://sachi.oss-cn-chengdu.aliyuncs.com/imgForTypora/image-20230531214957253.png" alt="image-20230531214957253"> </p><p>点击验证图片上传选项</p><p><img src="https://sachi.oss-cn-chengdu.aliyuncs.com/imgForTypora/image-20230531215358004.png" alt="image-20230531215358004"> </p><p>证明Typora已经成功配置好了PicGo自动上传，至此可以随心所欲在Typora中插入图片而不用担心本地图片失效的问题啦~~~</p>]]></content>
+    
+    
+    <categories>
+      
+      <category>技术经验</category>
+      
+      <category>博客</category>
+      
+    </categories>
+    
+    
+    <tags>
+      
+      <tag>Typora</tag>
+      
+      <tag>PicGo</tag>
+      
+    </tags>
+    
+  </entry>
+  
+  
+  
+  <entry>
     <title>Hello World</title>
     <link href="/hello-world.html"/>
     <url>/hello-world.html</url>
