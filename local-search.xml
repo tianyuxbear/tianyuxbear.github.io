@@ -4,19 +4,6 @@
   
   
   <entry>
-    <title></title>
-    <link href="/service.html"/>
-    <url>/service.html</url>
-    
-    <content type="html"><![CDATA[<p><img src="https://sachi.oss-cn-chengdu.aliyuncs.com/imgForTypora/Typora-PicGo-AliyunOSS.png" alt="Typora-PicGo-AliyunOSS"> </p>]]></content>
-    
-    
-    
-  </entry>
-  
-  
-  
-  <entry>
     <title>Typora配置图床：PicGo + 阿里云OSS</title>
     <link href="/typora-picgo-aliyunOSS.html"/>
     <url>/typora-picgo-aliyunOSS.html</url>
