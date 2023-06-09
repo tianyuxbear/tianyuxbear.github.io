@@ -4,6 +4,33 @@
   
   
   <entry>
+    <title>编译原理概述</title>
+    <link href="/Compile-Notes-01.html"/>
+    <url>/Compile-Notes-01.html</url>
+    
+    <content type="html"><![CDATA[]]></content>
+    
+    
+    <categories>
+      
+      <category>学习笔记</category>
+      
+      <category>编译原理</category>
+      
+    </categories>
+    
+    
+    <tags>
+      
+      <tag>编译原理</tag>
+      
+    </tags>
+    
+  </entry>
+  
+  
+  
+  <entry>
     <title>Typora配置图床：PicGo + 阿里云OSS</title>
     <link href="/typora-picgo-aliyunOSS.html"/>
     <url>/typora-picgo-aliyunOSS.html</url>
@@ -13,9 +40,9 @@
     
     <categories>
       
-      <category>技术经验</category>
+      <category>经验分享</category>
       
-      <category>博客</category>
+      <category>Typora</category>
       
     </categories>
     
