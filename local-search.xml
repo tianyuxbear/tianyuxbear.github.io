@@ -4,33 +4,6 @@
   
   
   <entry>
-    <title>编译原理概述</title>
-    <link href="/compile/Compile-Notes-01.html"/>
-    <url>/compile/Compile-Notes-01.html</url>
-    
-    <content type="html"><![CDATA[<p><span class="math display">\[E = mc^2\]</span></p>]]></content>
-    
-    
-    <categories>
-      
-      <category>学习笔记</category>
-      
-      <category>编译原理</category>
-      
-    </categories>
-    
-    
-    <tags>
-      
-      <tag>编译原理</tag>
-      
-    </tags>
-    
-  </entry>
-  
-  
-  
-  <entry>
     <title>Typora配置图床：PicGo + 阿里云OSS</title>
     <link href="/typora-picgo-aliyunOSS.html"/>
     <url>/typora-picgo-aliyunOSS.html</url>
