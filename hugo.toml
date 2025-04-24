@@ -6,7 +6,7 @@
 # website's title
 title = "Sachi's Blog"
 # hostname (and path) to the root
-baseURL = "https://codebearjourney.top/"
+baseURL = "https://codebearjourney.top"
 # default theme for this website
 theme = ["ksimple"] 
 # language code, only here CN uppercase ["en", "zh-CN", "fr", "pl", ...]
@@ -22,7 +22,7 @@ footnotereturnlinkcontents = "↩"
 
 [params]
 description = "Welcome to Sachi's blog!"
-footer = "&copy; [Sachi](https://codebearjourney.top/) 2025 -- {Year} | 🎨[KSimple](https://github.com/captainwc/captainwc.github.io/tree/main/themes/ksimple)"
+footer = "&copy; [Sachi](https://codebearjourney.top) 2025 -- {Year} | 🎨[KSimple](https://github.com/captainwc/captainwc.github.io/tree/main/themes/ksimple)"
 favicon = "/images/favicon.png"
 githubUserName = "tianyuxbear"
 
