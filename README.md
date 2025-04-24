@@ -3,3 +3,5 @@ Hello, I'm a passionate developer with a strong foundation in software engineeri
 stay hungry! stay foolish!
 
 man what can i say? i'm a fucking genius!
+
+wait a minute, i'm not a fucking genius! i'm a fucking genius!
