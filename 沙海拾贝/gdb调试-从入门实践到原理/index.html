@@ -1,0 +1,2776 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>GDB 调试:从入门实践到原理 | [转载](https://mp.weixin.qq.com/s/XO462ijLN3i0q7QKcb-f7Q) | Sachi&#39;s Blog</title>
+    <link rel="icon" href= /images/favicon.png />
+    <link rel="stylesheet" href="/css/style.css" />
+    <link rel="stylesheet" href="/css/fonts.css" />
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+
+    
+  </head>
+
+  <body>
+    <nav>
+    <ul class="menu">
+      
+      <li><a href="/">主页</a></li>
+      
+      <li><a href="/series/">专栏</a></li>
+      
+      <li><a href="/categories/">分类</a></li>
+      
+      <li><a href="/tags/">标签</a></li>
+      
+      <li><a href="/archives/">归档</a></li>
+      
+      <li><a href="/search/">搜索</a></li>
+      
+      <li><a href="/about/">关于</a></li>
+      
+    </ul>
+    <hr/>
+    </nav>
+
+
+<div class="article-meta">
+    <h1><span class="article-meta-title">GDB 调试:从入门实践到原理 | 
+<a href="https://mp.weixin.qq.com/s/XO462ijLN3i0q7QKcb-f7Q"  target="_blank" rel="noopener noreferrer" >转载</a></span></h1>
+
+    <div class="article-meta-info">
+        
+
+        
+        
+        
+        
+
+        
+        
+        
+        
+
+        
+        
+        
+        
+        
+        
+        
+        
+        
+
+        
+        
+        
+        
+        
+        
+        
+        
+        
+
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+
+        🕺🏻 [雨乐] 🗓️ 2025-04-23 🎖️ <a href="/series/tools/">tools</a> 🗂️ <a href="/categories/%E6%B2%99%E6%B5%B7%E6%8B%BE%E8%B4%9D/">沙海拾贝</a> 🏷️ <a href="/tags/gdb/">#gdb</a> <a href="/tags/tools/">#tools</a>
+    </div>
+</div>
+
+<main>
+
+    
+
+<div class="toc-btn" id="tocBtn"><i class="fa-solid fa-bars-staggered"></i></div>
+<div class="toc-panel" id="tocPanel"></div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const btn = document.getElementById('tocBtn');
+    const panel = document.getElementById('tocPanel');
+    let hoverTimeout;
+
+    
+    btn.addEventListener('mouseenter', () => {
+      clearTimeout(hoverTimeout);
+      generateToc();
+      panel.classList.add('show');
+
+      
+      requestAnimationFrame(() => {
+        const headers = Array.from(document.querySelectorAll('h2, h3, h4, h5, h6'));
+        let activeHeader = null;
+        let minDistance = Infinity;
+
+        
+        headers.forEach(header => {
+          const rect = header.getBoundingClientRect();
+          const distance = Math.abs(rect.top);
+          if (distance < minDistance) {
+            minDistance = distance;
+            activeHeader = header;
+          }
+        });
+
+        
+        if (activeHeader) {
+          const activeLink = panel.querySelector(`a[href="#${activeHeader.id}"]`);
+          if (activeLink) {
+            
+            const panelHeight = panel.offsetHeight;
+            const linkOffset = activeLink.offsetTop;
+            const centerPosition = linkOffset - (panelHeight / 2) + (activeLink.offsetHeight / 2);
+            
+            panel.scrollTo({
+              top: centerPosition,
+              behavior: 'auto'
+            });
+          }
+        }
+      });
+    });
+
+    panel.addEventListener('mouseenter', () => clearTimeout(hoverTimeout));
+
+    [btn, panel].forEach(el => {
+      el.addEventListener('mouseleave', () => {
+        hoverTimeout = setTimeout(() => {
+          panel.classList.remove('show');
+        }, 200);
+      });
+    });
+
+    
+    function generateToc() {
+      if (panel.children.length > 0) return;
+
+      const headers = Array.from(document.querySelectorAll('h2, h3, h4, h5, h6'));
+      const counts = [0, 0, 0, 0, 0]; 
+
+      headers.forEach(header => {
+        const level = parseInt(header.tagName[1]) - 2;
+        if (level < 0) return;
+
+        counts[level]++;
+        for (let i = level + 1; i < counts.length; i++) counts[i] = 0;
+        const number = counts.slice(0, level + 1).join('.');
+
+        
+        const numberSpan = document.createElement('span');
+        numberSpan.className = 'toc-number';
+        numberSpan.textContent = number;
+
+        
+        const link = document.createElement('a');
+        link.href = `#${header.id}`;
+        link.style.paddingLeft = `${level * 12}px`;
+
+        
+        link.appendChild(numberSpan);
+        link.appendChild(document.createTextNode(header.textContent));
+
+        panel.appendChild(link);
+      });
+    }
+  });
+</script>
+
+<style>
+   
+  .toc-btn {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+    cursor: pointer;
+    padding: 6px 10px;
+    background: #EFEFEF;
+    border-radius: 8px;
+    transition: background 0.3s;
+    color: #999;
+    opacity: 0.7;
+  }
+
+  .toc-btn:hover {
+    background: #BEC2B3;
+  }
+
+   
+  .toc-number {
+    vertical-align: middle;
+    margin-right: 8px;
+    font-family: "LXGW WenKai";
+    font-size: 0.8rem;
+  }
+
+   
+  .toc-panel {
+    border-radius: 8px;
+    display: none;
+    position: fixed;
+    top: 66px;
+    right: 20px;
+    max-width: 360px;
+    min-width: 200px;
+    max-height: 80vh;
+    overflow-y: auto;
+    background: white;
+    border: 1px solid #eee;
+    padding: 10px 5px 10px 15px;
+    z-index: 9998;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+     
+    list-style: none;
+  }
+
+  .toc-panel a {
+    display: block;
+    padding: 4px 0;
+    text-decoration: none;
+    color: #333;
+    white-space: nowrap;
+     
+     
+     
+  }
+
+  .toc-panel a:hover {
+    color: #007bff;
+  }
+
+   
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateX(10px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  .toc-panel.show {
+    display: block;
+    animation: fadeIn 0.3s ease-out;
+  }
+</style>
+
+
+    
+    
+    
+        <p>一直有读者在问，能不能写一篇关于gdb调试方面的文章，今天借助此文，分享一些工作中的调试经验，希望能够帮到大家。</p>
+<h2 id="写在前面">写在前面</h2>
+<p>在我的工作经历中，前几年在Windows上进行开发，使用Visual Studio进行调试，简直是利器，各种断点等用鼠标点点点就能设置；大概从12年开始转Linux开发了，所以调试都是基于GDB的。本来这篇文章也想写写Windows下调试相关，奈何好多年没用了，再加上工作太忙，所以本文就只写了Linux下GDB调试相关，对于Windows开发人员，实在对不住了😃。</p>
+<p>这篇文章，涉及的比较全面，总结了这些年的gdb调试经验(都是小儿科😁)，经常用到的一些调试技巧，希望能够对从事Linux开发的相关人员有所帮助</p>
+<p>
+<div class="img-no-link">
+  <img class="common-markdown-diagram" src="https://cdn.jsdelivr.net/gh/tianyuxbear/images/blog/gdb-mind-map.png" alt="gdb-mind-map" />
+</div>
+</p>
+<h2 id="背景">背景</h2>
+<p>作为C/C++开发人员，保证程序正常运行是最基本也是最主要的目的。而为了保证程序正常运行，调试则是最基本的手段，熟悉这些调试方式，可以方便我们更快的定位程序问题所在，提高开发效率。</p>
+<p>在开发过程，如果程序的运行结果不符合预期，第一时间就是打开GDB进行调试，在对应的地方<code>设置断点</code>，然后分析原因；当线上服务出了问题，第一时间查看进程在不在，如果不在的话，是否生成了<code>coredump文件</code>，如果有，则使用gdb调试coredump文件，否则通过<code>dmesg</code>来分析内核日志来查找原因。</p>
+<h2 id="概念">概念</h2>
+<p>GDB是一个由GNU开源组织发布的、UNIX/LINUX操作系统下的、<strong>「基于命令行的、功能强大的程序调试工具」</strong>。</p>
+<p>GDB支持断点、单步执行、打印变量、观察变量、查看寄存器、查看堆栈等调试手段。在Linux环境软件开发中，GDB是主要的调试工具，用来调试C和 C++程序(也支持go等其他语言)。</p>
+<h2 id="常用命令">常用命令</h2>
+<h3 id="断点">断点</h3>
+<p>断点是我们在调试中经常用的一个功能，我们在指定位置设置断点之后，程序运行到该位置将会<code>暂停</code>，这个时候我们就可以对程序进行更多的操作，比如查看<code>变量内容，堆栈情况</code>等等，以帮助我们调试程序。</p>
+<p>以设置断点的命令分为以下几类：</p>
+<ul>
+<li>
+<p>breakpoint</p>
+</li>
+<li>
+<p>watchpoint</p>
+</li>
+<li>
+<p>catchpoint</p>
+</li>
+</ul>
+<h4 id="breakpoint">breakpoint</h4>
+<p>可以根据行号、函数、条件生成断点，下面是相关命令以及对应的作用说明：</p>
+<table><thead><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: white;"><th style="border-top-width: 1px;border-color: rgb(204, 204, 204);text-align: left;background-color: rgb(240, 240, 240);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;">命令</th><th style="border-top-width: 1px;border-color: rgb(204, 204, 204);text-align: left;background-color: rgb(240, 240, 240);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;">作用</th></tr></thead><tbody style="border-width: 0px;border-style: initial;border-color: initial;"><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: white;"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">break [file]:function</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">在文件file的function函数入口设置断点</span></td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: rgb(248, 248, 248);"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">break [file]:line</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">在文件file的第line行设置断点</span></td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: white;"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">info breakpoints</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">查看断点列表</span></td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: rgb(248, 248, 248);"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">break [+-]offset</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">在当前位置偏移量为[+-]offset处设置断点</span></td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: white;"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">break *addr</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">在地址addr处设置断点</span></td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: rgb(248, 248, 248);"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">break ... if expr</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">设置条件断点，仅仅在条件满足时</span></td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: white;"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">ignore n count</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">接下来对于编号为n的断点忽略count次</span></td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: rgb(248, 248, 248);"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">clear</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">删除所有断点</span></td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: white;"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">clear function</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">删除所有位于function内的断点</span></td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: rgb(248, 248, 248);"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">delete n</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">删除指定编号的断点</span></td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: white;"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">enable n</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">启用指定编号的断点</span></td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: rgb(248, 248, 248);"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">disable n</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">禁用指定编号的断点</span></td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: white;"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">save breakpoints file</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">保存断点信息到指定文件</span></td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: rgb(248, 248, 248);"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">source file</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">导入文件中保存的断点信息</span></td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: white;"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">break</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">在下一个指令处设置断点</span></td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: rgb(248, 248, 248);"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">clear [file:]line</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">删除第line行的断点</span></td></tr></tbody></table>  
+<h4 id="watchpoint">watchpoint</h4>
+<p>watchpoint是一种特殊类型的断点，类似于正常断点，是要求GDB暂停程序执行的命令。区别在于watchpoint<code>没有驻留</code>某一行源代码中，而是指示GDB每当某个表达式改变了值就<code>暂停执行</code>的命令。</p>
+<p>watchpoint分为<code>硬件实现和软件实现</code>两种。前者需要硬件系统的支持；后者的原理就是每步执行后都检查变量的值是否改变。GDB在新建数据断点时会优先尝试硬件方式，如果失败再尝试软件实现。</p>
+<table><thead><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: white;"><th style="border-top-width: 1px;border-color: rgb(204, 204, 204);text-align: left;background-color: rgb(240, 240, 240);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">命令</span></th><th style="border-top-width: 1px;border-color: rgb(204, 204, 204);text-align: left;background-color: rgb(240, 240, 240);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">作用</span></th></tr></thead><tbody style="border-width: 0px;border-style: initial;border-color: initial;"><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: white;"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">watch variable</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">设置变量数据断点</span></td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: rgb(248, 248, 248);"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">watch var1 + var2</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">设置表达式数据断点</span></td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: white;"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">rwatch variable</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">设置读断点，仅支持硬件实现</span></td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: rgb(248, 248, 248);"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">awatch variable</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">设置读写断点，仅支持硬件实现</span></td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: white;"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">info watchpoints</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">查看数据断点列表</span></td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: rgb(248, 248, 248);"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">set can-use-hw-watchpoints 0</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">强制基于软件方式实现</span></td></tr></tbody></table>  
+<p>使用数据断点时，需要注意：</p>
+<ul>
+<li>
+<p>当监控变量为局部变量时，一旦局部变量失效，数据断点也会失效</p>
+</li>
+<li>
+<p>如果监控的是指针变量<code>p</code>，则<code>watch *p</code>监控的是<code>p</code>所指内存数据的变化情况，而<code>watch p</code>监控的是p指针本身有没有改变指向</p>
+</li>
+</ul>
+<p>最常见的数据断点应用场景：<strong>「定位堆上的结构体内部成员何时被修改」</strong>。由于指针一般为局部变量，为了解决断点失效，一般有两种方法。</p>
+<table><thead><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: white;"><th style="border-top-width: 1px;border-color: rgb(204, 204, 204);text-align: left;background-color: rgb(240, 240, 240);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">命令</span></th><th style="border-top-width: 1px;border-color: rgb(204, 204, 204);text-align: left;background-color: rgb(240, 240, 240);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;">作用</th></tr></thead><tbody style="border-width: 0px;border-style: initial;border-color: initial;"><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: white;"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">print &amp;variable</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">查看变量的内存地址</span></td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: rgb(248, 248, 248);"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">watch *(type *)address</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">通过内存地址间接设置断点</span></td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: white;"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">watch -l variable</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">指定location参数</span></td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: rgb(248, 248, 248);"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">watch variable thread 1</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">仅编号为1的线程修改变量var值时会中断</span></td></tr></tbody></table>  
+<h4 id="catchpoint">catchpoint</h4>
+<p>从字面意思理解，是捕获断点，其主要监测信号的产生。例如c++的throw，或者加载库的时候，产生断点行为。</p>
+<table><thead><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: white;"><th style="border-top-width: 1px;border-color: rgb(204, 204, 204);text-align: justify;background-color: rgb(240, 240, 240);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">命令</span></th><th style="border-top-width: 1px;border-color: rgb(204, 204, 204);text-align: justify;background-color: rgb(240, 240, 240);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">含义</span></th></tr></thead><tbody style="border-width: 0px;border-style: initial;border-color: initial;"><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: white;"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">catch fork</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">程序调用fork时中断</span></td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: rgb(248, 248, 248);"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">tcatch fork</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">设置的断点只触发一次，之后被自动删除</span></td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: white;"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">catch syscall ptrace</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">为ptrace系统调用设置断点</span></td></tr></tbody></table>
+
+          <link rel="stylesheet" href="/css/vendors/admonitions.e8f9d71468684b38dcc32a3631441f47b6ee45ce52f3bcc31201e76cc2b0a193.css" integrity="sha256-6PnXFGhoSzjcwyo2MUQfR7buRc5S87zDEgHnbMKwoZM=" crossorigin="anonymous">
+  <div class="admonition tip">
+    <div class="admonition-header">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><path d="M272 384c9.6-31.9 29.5-59.1 49.2-86.2c0 0 0 0 0 0c5.2-7.1 10.4-14.2 15.4-21.4c19.8-28.5 31.4-63 31.4-100.3C368 78.8 289.2 0 192 0S16 78.8 16 176c0 37.3 11.6 71.9 31.4 100.3c5 7.2 10.2 14.3 15.4 21.4c0 0 0 0 0 0c19.8 27.1 39.7 54.4 49.2 86.2l160 0zM192 512c44.2 0 80-35.8 80-80l0-16-160 0 0 16c0 44.2 35.8 80 80 80zM112 176c0 8.8-7.2 16-16 16s-16-7.2-16-16c0-61.9 50.1-112 112-112c8.8 0 16 7.2 16 16s-7.2 16-16 16c-44.2 0-80 35.8-80 80z"/></svg>
+      <span>Tips</span>
+    </div>
+      <div class="admonition-content">
+        <p>在<code>command</code>命令后加断点编号，可以定义断点触发后想要执行的操作。在一些高级的自动化调试场景中可能会用到。</p>
+      </div>
+  </div>
+<h3 id="命令行">命令行</h3>
+<table><thead><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: white;"><th style="border-top-width: 1px;border-color: rgb(204, 204, 204);text-align: left;background-color: rgb(240, 240, 240);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">命令</span></th><th style="border-top-width: 1px;border-color: rgb(204, 204, 204);text-align: left;background-color: rgb(240, 240, 240);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">作用</span></th></tr></thead><tbody style="border-width: 0px;border-style: initial;border-color: initial;"><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: white;"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">run arglist</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">以arglist为参数列表运行程序</span></td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: rgb(248, 248, 248);"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">set args arglist</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">指定启动命令行参数</span></td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: white;"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">set args</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">指定空的参数列表</span></td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: rgb(248, 248, 248);"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">show args</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">打印命令行列表</span></td></tr></tbody></table>  
+<h3 id="程序栈">程序栈</h3>
+<table><thead><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: white;"><th style="border-top-width: 1px;border-color: rgb(204, 204, 204);text-align: left;background-color: rgb(240, 240, 240);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">命令</span></th><th style="border-top-width: 1px;border-color: rgb(204, 204, 204);text-align: left;background-color: rgb(240, 240, 240);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">作用</span></th></tr></thead><tbody style="border-width: 0px;border-style: initial;border-color: initial;"><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: white;"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">backtrace [n]</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">打印栈帧</span></td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: rgb(248, 248, 248);"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">frame [n]</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">选择第n个栈帧，如果不存在，则打印当前栈帧</span></td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: white;"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">up n</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">选择当前栈帧编号+n的栈帧</span></td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: rgb(248, 248, 248);"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">down n</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">选择当前栈帧编号-n的栈帧</span></td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: white;"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">info frame [addr]</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">描述当前选择的栈帧</span></td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: rgb(248, 248, 248);"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">info args</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">当前栈帧的参数列表</span></td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: white;"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">info locals</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">当前栈帧的局部变量</span></td></tr></tbody></table>  
+<h3 id="多进程多线程">多进程、多线程</h3>
+<h4 id="多进程">多进程</h4>
+<p>GDB在调试多进程程序（程序含<code>fork</code>调用）时，默认只追踪父进程。可以通过命令设置，实现只追踪父进程或子进程，或者同时调试父进程和子进程。</p>
+<table><thead><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: white;"><th style="border-top-width: 1px;border-color: rgb(204, 204, 204);text-align: justify;background-color: rgb(240, 240, 240);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">命令</span></th><th style="border-top-width: 1px;border-color: rgb(204, 204, 204);text-align: justify;background-color: rgb(240, 240, 240);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">作用</span></th></tr></thead><tbody style="border-width: 0px;border-style: initial;border-color: initial;"><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: white;"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">info inferiors</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">查看进程列表</span></td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: rgb(248, 248, 248);"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">attach pid</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">绑定进程id</span></td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: white;"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">inferior num</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">切换到指定进程上进行调试</span></td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: rgb(248, 248, 248);"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">print $_exitcode</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">显示程序退出时的返回值</span></td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: white;"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">set follow-fork-mode child</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">追踪子进程</span></td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: rgb(248, 248, 248);"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">set follow-fork-mode parent</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">追踪父进程</span></td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: white;"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">set detach-on-fork on</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">fork调用时只追踪其中一个进程</span></td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: rgb(248, 248, 248);"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">set detach-on-fork off</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">fork调用时会同时追踪父子进程</span></td></tr></tbody></table>  
+<p>在调试多进程程序时候，默认情况下，除了当前调试的进程，其他进程都处于挂起状态，所以，如果需要在调试当前进程的时候，其他进程也能正常执行，那么通过设置<code>set schedule-multiple on</code>即可。</p>
+<h4 id="多线程">多线程</h4>
+<p>多线程开发在日常开发工作中很常见，所以多线程的调试技巧非常有必要掌握。</p>
+<p>默认调试多线程时，一旦程序中断，所有线程都将暂停。如果此时再继续执行当前线程，其他线程也会同时执行。</p>
+<table><thead><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: white;"><th style="border-top-width: 1px;border-color: rgb(204, 204, 204);text-align: justify;background-color: rgb(240, 240, 240);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">命令</span></th><th style="border-top-width: 1px;border-color: rgb(204, 204, 204);text-align: justify;background-color: rgb(240, 240, 240);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">作用</span></th></tr></thead><tbody style="border-width: 0px;border-style: initial;border-color: initial;"><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: white;"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">info threads</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">查看线程列表</span></td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: rgb(248, 248, 248);"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">print $_thread</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">显示当前正在调试的线程编号</span></td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: white;"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">set scheduler-locking on</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">调试一个线程时，其他线程暂停执行</span></td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: rgb(248, 248, 248);"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">set scheduler-locking off</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">调试一个线程时，其他线程同步执行</span></td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: white;"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">set scheduler-locking step</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">仅用step调试线程时其他线程不执行，用其他命令如next调试时仍执行</span></td></tr></tbody></table>  
+<p>如果只关心当前线程，建议临时设置<code>scheduler-locking</code>为<code>on</code>，避免其他线程同时运行，导致命中其他断点分散注意力。</p>
+<h3 id="打印输出">打印输出</h3>
+<p>通常情况下，在调试的过程中，我们需要查看某个变量的值，以分析其是否符合预期，这个时候就需要打印输出变量值。</p>
+<table><thead><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: white;"><th style="border-top-width: 1px;border-color: rgb(204, 204, 204);text-align: justify;background-color: rgb(240, 240, 240);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">命令</span></th><th style="border-top-width: 1px;border-color: rgb(204, 204, 204);text-align: justify;background-color: rgb(240, 240, 240);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">作用</span></th></tr></thead><tbody style="border-width: 0px;border-style: initial;border-color: initial;"><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: white;"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">whatis variable</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">查看变量的类型</span></td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: rgb(248, 248, 248);"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">ptype variable</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">查看变量详细的类型信息</span></td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: white;"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">info variables var</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">查看定义该变量的文件，不支持局部变量</span></td></tr></tbody></table>  
+<h5 id="打印字符串">打印字符串</h5>
+<p>使用<code>x/s</code>命令打印<code>ASCII</code>字符串，如果是宽字符字符串，需要先看宽字符的长度<code>print sizeof(str)</code>。</p>
+<p>如果长度为<code>2</code>，则使用<code>x/hs</code>打印；如果长度为<code>4</code>，则使用<code>x/ws</code>打印。</p>
+<table><thead><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: white;"><th style="border-top-width: 1px;border-color: rgb(204, 204, 204);text-align: justify;background-color: rgb(240, 240, 240);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">命令</span></th><th style="border-top-width: 1px;border-color: rgb(204, 204, 204);text-align: justify;background-color: rgb(240, 240, 240);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">作用</span></th></tr></thead><tbody style="border-width: 0px;border-style: initial;border-color: initial;"><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: white;"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">x/s str</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">打印字符串</span></td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: rgb(248, 248, 248);"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">set print elements 0</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">打印不限制字符串长度/或不限制数组长度</span></td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: white;"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">call printf(&#34;%s\n&#34;,xxx)</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">这时打印出的字符串不会含有多余的转义符</span></td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: rgb(248, 248, 248);"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">printf &#34;%s\n&#34;,xxx</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">同上</span></td></tr></tbody></table>  
+<h5 id="打印数组">打印数组</h5>
+<table><thead><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: white;"><th style="border-top-width: 1px;border-color: rgb(204, 204, 204);text-align: left;background-color: rgb(240, 240, 240);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">命令</span></th><th style="border-top-width: 1px;border-color: rgb(204, 204, 204);text-align: left;background-color: rgb(240, 240, 240);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">作用</span></th></tr></thead><tbody style="border-width: 0px;border-style: initial;border-color: initial;"><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: white;"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">print *array@10</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">打印从数组开头连续10个元素的值</span></td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: rgb(248, 248, 248);"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">print array[60]@10</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">打印array数组下标从60开始的10个元素，即第60~69个元素</span></td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: white;"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">set print array-indexes on</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">打印数组元素时，同时打印数组的下标</span></td></tr></tbody></table>  
+<h5 id="打印指针">打印指针</h5>
+<table><thead><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: white;"><th style="border-top-width: 1px;border-color: rgb(204, 204, 204);text-align: left;background-color: rgb(240, 240, 240);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">命令</span></th><th style="border-top-width: 1px;border-color: rgb(204, 204, 204);text-align: left;background-color: rgb(240, 240, 240);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">作用</span></th></tr></thead><tbody style="border-width: 0px;border-style: initial;border-color: initial;"><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: white;"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">print ptr</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;word-break: break-all;"><span style="font-size: 15px;">查看该指针指向的类型及指针地址</span></td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: rgb(248, 248, 248);"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">print *(struct xxx *)ptr</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">查看指向的结构体的内容</span></td></tr></tbody></table>  
+<h5 id="打印指定内存地址的值">打印指定内存地址的值</h5>
+<p>使用<code>x</code>命令来打印内存的值，格式为<code>x/nfu addr</code>，以<code>f</code>格式打印从<code>addr</code>开始的<code>n</code>个长度单元为u的内存值。</p>
+<ul>
+<li>
+<p><code>n</code>：输出单元的个数</p>
+</li>
+<li>
+<p><code>f</code>：输出格式，如<code>x</code>表示以<code>16</code>进制输出，<code>o</code>表示以<code>8</code>进制输出，默认为<code>x</code></p>
+</li>
+<li>
+<p><code>u</code>：一个单元的长度，<code>b</code>表示<code>1</code>个<code>byte</code>，<code>h</code>表示<code>2</code>个<code>byte</code>（<code>half word</code>），w表示<code>4</code>个<code>byte</code>  ，<code>g</code>表示<code>8</code>个<code>byte</code>（<code>giant word</code>）。</p>
+</li>
+</ul>
+<table><thead><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: white;"><th style="border-top-width: 1px;border-color: rgb(204, 204, 204);text-align: justify;background-color: rgb(240, 240, 240);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">命令</span></th><th style="border-top-width: 1px;border-color: rgb(204, 204, 204);text-align: justify;background-color: rgb(240, 240, 240);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">作用</span></th></tr></thead><tbody style="border-width: 0px;border-style: initial;border-color: initial;"><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: white;"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">x/8xb array</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">以16进制打印数组array的前8个byte的值</span></td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: rgb(248, 248, 248);"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">x/8xw array</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">以16进制打印数组array的前16个word的值</span></td></tr></tbody></table>  
+<h5 id="打印局部变量">打印局部变量</h5>
+<table><thead><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: white;"><th style="border-top-width: 1px;border-color: rgb(204, 204, 204);text-align: left;background-color: rgb(240, 240, 240);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">命令</span></th><th style="border-top-width: 1px;border-color: rgb(204, 204, 204);text-align: left;background-color: rgb(240, 240, 240);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">作用</span></th></tr></thead><tbody style="border-width: 0px;border-style: initial;border-color: initial;"><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: white;"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">info locals</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">打印当前函数局部变量的值</span></td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: rgb(248, 248, 248);"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">backtrace full</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">打印当前栈帧各个函数的局部变量值，命令可缩写为bt</span></td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: white;"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">bt full n</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">从内到外显示n个栈帧及其局部变量</span></td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: rgb(248, 248, 248);"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">bt full -n</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">从外向内显示n个栈帧及其局部变量</span></td></tr></tbody></table>  
+<h5 id="打印结构体">打印结构体</h5>
+<table><thead><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: white;"><th style="border-top-width: 1px;border-color: rgb(204, 204, 204);text-align: left;background-color: rgb(240, 240, 240);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;">命令</th><th style="border-top-width: 1px;border-color: rgb(204, 204, 204);text-align: left;background-color: rgb(240, 240, 240);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;">作用</th></tr></thead><tbody style="border-width: 0px;border-style: initial;border-color: initial;"><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: white;"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">set print pretty on</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">每行只显示结构体的一名成员</span></td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: rgb(248, 248, 248);"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">set print null-stop</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">不显示&#39;\000&#39;</span><repeat xx="" times=""><span style="font-size: 15px;">这种</span></repeat></td></tr></tbody></table>  
+<h3 id="函数跳转">函数跳转</h3>
+<table><thead><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: white;"><th style="border-top-width: 1px;border-color: rgb(204, 204, 204);text-align: left;background-color: rgb(240, 240, 240);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;">命令</th><th style="border-top-width: 1px;border-color: rgb(204, 204, 204);text-align: left;background-color: rgb(240, 240, 240);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;">作用</th></tr></thead><tbody style="border-width: 0px;border-style: initial;border-color: initial;"><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: white;"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;">set step-mode on</td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;">不跳过不含调试信息的函数，可以显示和调试汇编代码</td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: rgb(248, 248, 248);"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;">finish</td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;">执行完当前函数并打印返回值，然后触发中断</td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: white;"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;">return 0</td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;">不再执行后面的指令，直接返回，可以指定返回值</td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: rgb(248, 248, 248);"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;">call printf(&#34;%s\n&#34;, str)</td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;">调用printf函数，打印字符串(可以使用call或者print调用函数)</td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: white;"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;">print func()</td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;">调用func函数(可以使用call或者print调用函数)</td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: rgb(248, 248, 248);"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;">set var variable=xxx</td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;">设置变量variable的值为xxx</td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: white;"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;">set {type}address = xxx</td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;">给存储地址为address，类型为type的变量赋值</td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: rgb(248, 248, 248);"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;">info frame</td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;">显示函数堆栈的信息（堆栈帧地址、指令寄存器的值等）</td></tr></tbody></table>  
+<h3 id="其它">其它</h3>
+<h4 id="图形化">图形化</h4>
+<p>tui为<code>terminal user interface</code>的缩写，在启动时候指定<code>-tui</code>参数，或者调试时使用<code>ctrl+x+a</code>组合键，可进入或退出图形化界面。</p>
+<table><thead><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: white;"><th style="border-top-width: 1px;border-color: rgb(204, 204, 204);text-align: justify;background-color: rgb(240, 240, 240);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">命令</span></th><th style="border-top-width: 1px;border-color: rgb(204, 204, 204);text-align: justify;background-color: rgb(240, 240, 240);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">含义</span></th></tr></thead><tbody style="border-width: 0px;border-style: initial;border-color: initial;"><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: white;"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">layout src</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">显示源码窗口</span></td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: rgb(248, 248, 248);"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">layout asm</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">显示汇编窗口</span></td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: white;"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">layout split</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">显示源码 + 汇编窗口</span></td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: rgb(248, 248, 248);"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">layout regs</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">显示寄存器 + 源码或汇编窗口</span></td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: white;"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">winheight src +5</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">源码窗口高度增加5行</span></td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: rgb(248, 248, 248);"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">winheight asm -5</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">汇编窗口高度减小5行</span></td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: white;"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">winheight cmd +5</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">控制台窗口高度增加5行</span></td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: rgb(248, 248, 248);"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">winheight regs -5</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">寄存器窗口高度减小5行</span></td></tr></tbody></table>  
+<h4 id="汇编">汇编</h4>
+<table><thead><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: white;"><th style="border-top-width: 1px;border-color: rgb(204, 204, 204);text-align: left;background-color: rgb(240, 240, 240);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">命令</span></th><th style="border-top-width: 1px;border-color: rgb(204, 204, 204);text-align: left;background-color: rgb(240, 240, 240);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">含义</span></th></tr></thead><tbody style="border-width: 0px;border-style: initial;border-color: initial;"><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: white;"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">disassemble function</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">查看函数的汇编代码</span></td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: rgb(248, 248, 248);"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">disassemble /mr function</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">同时比较函数源代码和汇编代码</span></td></tr></tbody></table>  
+<h4 id="调试和保存core文件">调试和保存core文件</h4>
+<table><thead><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: white;"><th style="border-top-width: 1px;border-color: rgb(204, 204, 204);text-align: left;background-color: rgb(240, 240, 240);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">命令</span></th><th style="border-top-width: 1px;border-color: rgb(204, 204, 204);text-align: left;background-color: rgb(240, 240, 240);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">含义</span></th></tr></thead><tbody style="border-width: 0px;border-style: initial;border-color: initial;"><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: white;"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">file exec_file  *# *</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">加载可执行文件的符号表信息</span></td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: rgb(248, 248, 248);"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">core core_file</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">加载core-dump文件</span></td></tr><tr style="border-width: 1px 0px 0px;border-right-style: initial;border-bottom-style: initial;border-left-style: initial;border-right-color: initial;border-bottom-color: initial;border-left-color: initial;border-top-style: solid;border-top-color: rgb(204, 204, 204);background-color: white;"><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">gcore core_file</span></td><td style="border-color: rgb(204, 204, 204);font-size: 14px;color: rgb(89, 89, 89);min-width: 85px;"><span style="font-size: 15px;">生成core-dump文件，记录当前进程的状态</span></td></tr></tbody></table>  
+<h2 id="启动方式">启动方式</h2>
+<p>使用gdb调试，一般有以下几种启动方式：</p>
+<ul>
+<li>
+<p>gdb filename: 调试可执行程序</p>
+</li>
+<li>
+<p>gdb attach pid: 通过”绑定“进程ID来调试正在运行的进程</p>
+</li>
+<li>
+<p>gdb filename -c coredump_file: 调试可执行文件</p>
+</li>
+</ul>
+<p>在下面的几节中，将分别对上述几种调试方式进行讲解，从例子的角度出发，使得大家能够更好的掌握调试技巧。</p>
+<h2 id="调试">调试</h2>
+<h3 id="可执行文件">可执行文件</h3>
+<h4 id="单线程">单线程</h4>
+<p>首先，我们先看一段代码：</p>
+<pre><code class="language-c">#include&lt;stdio.h&gt;
+
+void print(int xx, int *xxptr) {
+  printf(&quot;In print():\n&quot;);
+  printf(&quot;   xx is %d and is stored at %p.\n&quot;, xx, &amp;xx);
+  printf(&quot;   ptr points to %p which holds %d.\n&quot;, xxptr, *xxptr);
+}
+
+int main(void) {
+  int x = 10;
+  int *ptr = &amp;x;
+  printf(&quot;In main():\n&quot;);
+  printf(&quot;   x is %d and is stored at %p.\n&quot;, x, &amp;x);
+  printf(&quot;   ptr points to %p which holds %d.\n&quot;, ptr, *ptr);
+  print(x, ptr);
+  return 0;
+}
+
+</code></pre>
+<p>这个代码比较简单，下面我们开始进入调试：</p>
+<pre><code class="language-bash">gdb ./test_main
+GNU gdb (GDB) Red Hat Enterprise Linux 7.6.1-114.el7
+Copyright (C) 2013 Free Software Foundation, Inc.
+License GPLv3+: GNU GPL version 3 or later &lt;http://gnu.org/licenses/gpl.html&gt;
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.  Type &quot;show copying&quot;
+and &quot;show warranty&quot; for details.
+This GDB was configured as &quot;x86_64-redhat-linux-gnu&quot;.
+For bug reporting instructions, please see:
+&lt;http://www.gnu.org/software/gdb/bugs/&gt;...
+Reading symbols from /root/test_main...done.
+(gdb) r
+Starting program: /root/./test_main
+In main():
+   x is 10 and is stored at 0x7fffffffe424.
+   ptr points to 0x7fffffffe424 which holds 10.
+In print():
+   xx is 10 and is stored at 0x7fffffffe40c.
+   xxptr points to 0x7fffffffe424 which holds 10.
+[Inferior 1 (process 31518) exited normally]
+Missing separate debuginfos, use: debuginfo-install glibc-2.17-260.el7.x86_64
+
+</code></pre>
+<p>在上述命令中，我们通过gdb test命令启动调试，然后通过执行r(run命令的缩写)执行程序，直至退出，换句话说，上述命令是一个完整的使用gdb运行可执行程序的完整过程(只使用了r命令)，接下来，我们将以此为例子，介绍几种比较常见的命令。</p>
+<h5 id="断点-1">断点</h5>
+<pre><code class="language-bash">(gdb) b 15
+Breakpoint 1 at 0x400601: file test_main.cc, line 15.
+(gdb) info b
+Num     Type           Disp Enb Address            What
+1       breakpoint     keep y   0x0000000000400601 in main() at test_main.cc:15(gdb) rStarting program: /root/./test_mainIn main():   x is 10 and is stored at 0x7fffffffe424.   ptr points to 0x7fffffffe424 which holds 10.Breakpoint 1, main () at test_main.cc:1515   print(xx, xxptr);
+Missing separate debuginfos, use: debuginfo-install glibc-2.17-260.el7.x86_64
+(gdb)
+
+</code></pre>
+<h5 id="backtrace">backtrace</h5>
+<pre><code class="language-bash">(gdb) backtrace
+#0  main () at test_main.cc:15
+(gdb)
+
+</code></pre>
+<p>backtrace命令是列出当前堆栈中的所有帧。在上面的例子中，栈上只有一帧，编号为0，属于main函数。</p>
+<pre><code class="language-bash">(gdb) step
+print (xx=10, xxptr=0x7fffffffe424) at test_main.cc:4
+4   printf(&quot;In print():\n&quot;);
+(gdb)
+
+</code></pre>
+<p>接着，我们执行了step命令，即进入函数内。下面我们继续通过backtrace命令来查看栈帧信息。</p>
+<pre><code>(gdb) backtrace
+#0  print (xx=10, xxptr=0x7fffffffe424) at test_main.cc:4
+#1  0x0000000000400612 in main () at test_main.cc:15
+(gdb)
+
+</code></pre>
+<p>从上面输出结果，我们能够看出，有两个栈帧，第1帧属于main函数，第0帧属于print函数。</p>
+<p>每个栈帧都列出了该函数的参数列表。从上面我们可以看出，main函数没有参数，而print函数有参数，并且显示了其参数的值。</p>
+<p>有一点我们可能比较迷惑，在第一次执行backtrace的时候，main函数所在的栈帧编号为0，而第二次执行的时候，main函数的栈帧为1，而print函数的栈帧为0，这是因为_与栈的向下增长_规律一致，我们只需要记住_编号最小帧号就是最近一次调用的函数_。</p>
+<h5 id="frame">frame</h5>
+<p>栈帧用来存储函数的变量值等信息，默认情况下，GDB总是位于当前正在执行函数对应栈帧的上下文中。</p>
+<p>在前面的例子中，由于当前正在print()函数中执行，GDB位于第0帧的上下文中。·可以通过frame命令来获取当前正在执行的上下文所在的帧`。</p>
+<pre><code class="language-bash">#0  print (xx=10, xxptr=0x7fffffffe424) at test_main.cc:4
+4   printf(&quot;In print():\n&quot;);
+(gdb)
+
+</code></pre>
+<p>下面，我们尝试使用print命令打印下当前栈帧的值，如下：</p>
+<pre><code class="language-bash">(gdb) print xx
+$1 = 10
+(gdb) print xxptr
+$2 = (int *) 0x7fffffffe424
+(gdb)
+
+</code></pre>
+<p>如果我们想看其他栈帧的内容呢？比如main函数中x和ptr的信息呢？假如直接打印这俩值的话，那么就会得到如下：</p>
+<pre><code class="language-bash">(gdb) print x
+No symbol &quot;x&quot; in current context.
+(gdb) print xxptr
+No symbol &quot;ptr&quot; in current context.
+(gdb)
+
+</code></pre>
+<p>在此，我们可以通过<strong>frame num</strong>来切换栈帧，如下：</p>
+<pre><code class="language-bash">(gdb) frame 1
+#1  0x0000000000400612 in main () at test_main.cc:15
+15   print(x, ptr);
+(gdb) print x
+$3 = 10
+(gdb) print ptr
+$4 = (int *) 0x7fffffffe424
+(gdb)
+
+</code></pre>
+<h4 id="多线程-1">多线程</h4>
+<p>为了方便进行演示，我们创建一个简单的例子，代码如下：</p>
+<pre><code class="language-c">#include &lt;chrono&gt;
+#include &lt;iostream&gt;
+#include &lt;string&gt;
+#include &lt;thread&gt;
+#include &lt;vector&gt;
+
+int fun_int(int n) {
+  std::this_thread::sleep_for(std::chrono::seconds(10));
+  std::cout &lt;&lt; &quot;in fun_int n = &quot; &lt;&lt; n &lt;&lt; std::endl;
+  
+  return 0;
+}
+
+int fun_string(const std::string &amp;s) {
+  std::this_thread::sleep_for(std::chrono::seconds(10));
+  std::cout &lt;&lt; &quot;in fun_string s = &quot; &lt;&lt; s &lt;&lt; std::endl;
+  
+  return 0;
+}
+
+int main() {
+  std::vector&lt;int&gt; v;
+  v.emplace_back(1);
+  v.emplace_back(2);
+  v.emplace_back(3);
+
+  std::cout &lt;&lt; v.size() &lt;&lt; std::endl;
+
+  std::thread t1(fun_int, 1);
+  std::thread t2(fun_string, &quot;test&quot;);
+
+  std::cout &lt;&lt; &quot;after thread create&quot; &lt;&lt; std::endl;
+  t1.join();
+  t2.join();
+  return 0;
+}
+
+</code></pre>
+<p>上述代码比较简单：</p>
+<ul>
+<li>
+<p>函数fun_int的功能是休眠10s，然后打印其参数</p>
+</li>
+<li>
+<p>函数fun_string功能是休眠10s，然后打印其参数</p>
+</li>
+<li>
+<p>main函数中，创建两个线程，分别执行上述两个函数</p>
+</li>
+</ul>
+<p>下面是一个完整的调试过程：</p>
+<pre><code class="language-bash">(gdb) b 27
+Breakpoint 1 at 0x4013d5: file test.cc, line 27.
+(gdb) b test.cc:32
+Breakpoint 2 at 0x40142d: file test.cc, line 32.
+(gdb) info b
+Num     Type           Disp Enb Address            What
+1       breakpoint     keep y   0x00000000004013d5 in main() at test.cc:272       breakpoint     keep y   0x000000000040142d in main() at test.cc:32(gdb) rStarting program: /root/test[Thread debugging using libthread_db enabled]Using host libthread_db library &quot;/lib64/libthread_db.so.1&quot;.Breakpoint 1, main () at test.cc:27(gdb) cContinuing.3[New Thread 0x7ffff6fd2700 (LWP 44996)]in fun_int n = 1
+[New Thread 0x7ffff67d1700 (LWP 44997)]
+
+Breakpoint 2, main () at test.cc:32
+32   std::cout &lt;&lt; &quot;after thread create&quot; &lt;&lt; std::endl;
+(gdb) info threads
+  Id   Target Id         Frame
+  3    Thread 0x7ffff67d1700 (LWP 44997) &quot;test&quot; 0x00007ffff7051fc3 in new_heap () from /lib64/libc.so.6  2    Thread 0x7ffff6fd2700 (LWP 44996) &quot;test&quot; 0x00007ffff7097e2d in nanosleep () from /lib64/libc.so.6* 1    Thread 0x7ffff7fe7740 (LWP 44987) &quot;test&quot; main () at test.cc:32(gdb) thread 2[Switching to thread 2 (Thread 0x7ffff6fd2700 (LWP 44996))]#0  0x00007ffff7097e2d in nanosleep () from /lib64/libc.so.6(gdb) bt#0  0x00007ffff7097e2d in nanosleep () from /lib64/libc.so.6#1  0x00007ffff7097cc4 in sleep () from /lib64/libc.so.6#2  0x00007ffff796ceb9 in std::this_thread::__sleep_for(std::chrono::duration&lt;long, std::ratio&lt;1l, 1l&gt; &gt;, std::chrono::duration&lt;long, std::ratio&lt;1l, 1000000000l&gt; &gt;) () from /lib64/libstdc++.so.6#3  0x00000000004018cc in std::this_thread::sleep_for&lt;long, std::ratio&lt;1l, 1l&gt; &gt; (__rtime=...) at /usr/include/c++/4.8.2/thread:281#4  0x0000000000401307 in fun_int (n=1) at test.cc:9#5  0x0000000000404696 in std::_Bind_simple&lt;int (*(int))(int)&gt;::_M_invoke&lt;0ul&gt;(std::_Index_tuple&lt;0ul&gt;) (this=0x609080)    at /usr/include/c++/4.8.2/functional:1732#6  0x000000000040443d in std::_Bind_simple&lt;int (*(int))(int)&gt;::operator()() (this=0x609080) at /usr/include/c++/4.8.2/functional:1720#7  0x000000000040436e in std::thread::_Impl&lt;std::_Bind_simple&lt;int (*(int))(int)&gt; &gt;::_M_run() (this=0x609068) at /usr/include/c++/4.8.2/thread:115#8  0x00007ffff796d070 in ?? () from /lib64/libstdc++.so.6#9  0x00007ffff7bc6dd5 in start_thread () from /lib64/libpthread.so.0#10 0x00007ffff70d0ead in clone () from /lib64/libc.so.6(gdb) cContinuing.after thread createin fun_int n = 1
+[Thread 0x7ffff6fd2700 (LWP 45234) exited]
+in fun_string s = test
+[Thread 0x7ffff67d1700 (LWP 45235) exited]
+[Inferior 1 (process 45230) exited normally]
+(gdb) q
+
+</code></pre>
+<p>在上述调试过程中：</p>
+<ol>
+<li>
+<p>b 27 在第27行加上断点</p>
+</li>
+<li>
+<p>b test.cc:32 在第32行加上断点(效果与b 32一致)</p>
+</li>
+<li>
+<p>info b 输出所有的断点信息</p>
+</li>
+<li>
+<p>r 程序开始运行，并在第一个断点处暂停</p>
+</li>
+<li>
+<p>c 执行c命令，在第二个断点处暂停，在第一个断点和第二个断点之间，创建了两个线程t1和t2</p>
+</li>
+<li>
+<p>info threads 输出所有的线程信息，从输出上可以看出，总共有3个线程，分别为main线程、t1和t2</p>
+</li>
+<li>
+<p>thread 2 切换至线程2</p>
+</li>
+<li>
+<p>bt 输出线程2的堆栈信息</p>
+</li>
+<li>
+<p>c 直至程序结束</p>
+</li>
+<li>
+<p>q 退出gdb</p>
+</li>
+</ol>
+<h4 id="多进程-1">多进程</h4>
+<p>同上面一样，我们仍然以一个例子进行模拟多进程调试，代码如下：</p>
+<pre><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;unistd.h&gt;
+
+int main(){
+    pid_t pid = fork();
+    if (pid == -1) {
+       perror(&quot;fork error\n&quot;);
+       return -1;
+    }
+  
+    if(pid == 0) { // 子进程
+        int num = 1;
+        while(num == 1){
+          sleep(10);
+         }
+        printf(&quot;this is child,pid = %d\n&quot;, getpid());
+    } else { // 父进程
+        printf(&quot;this is parent,pid = %d\n&quot;, getpid());
+      wait(NULL); // 等待子进程退出
+    }
+    return 0;
+}
+
+</code></pre>
+<p>在上面代码中，包含两个进程，一个是父进程(也就是main进程)，另外一个是由fork()函数创建的子进程。</p>
+<p>在默认情况下，在多进程程序中，GDB只调试main进程，也就是说无论程序调用了多少次fork()函数创建了多少个子进程，GDB在默认情况下，只调试父进程。为了支持多进程调试，从GDB版本7.0开始支持单独调试(调试父进程或者子进程)和同时调试多个进程。</p>
+<p>那么，我们该如何调试子进程呢？我们可以使用如下几种方式进行子进程调试。</p>
+<h5 id="attach">attach</h5>
+<p>首先，无论是父进程还是子进程，都可以通过attach命令启动gdb进行调试。我们都知道，对于每个正在运行的程序，操作系统都会为其分配一个唯一ID号，也就是进程ID。如果我们知道了进程ID，就可以使用attach命令对其进行调试了。</p>
+<p>在上面代码中，fork()函数创建的子进程内部，首先会进入while循环sleep，然后在while循环之后调用printf函数。这样做的目的有如下：</p>
+<ul>
+<li>
+<p>帮助attach捕获要调试的进程id</p>
+</li>
+<li>
+<p>在使用gdb进行调试的时候，真正的代码(即print函数)没有被执行，这样就可以从头开始对子进程进行调试</p>
+</li>
+</ul>
+
+  <div class="admonition tip">
+    <div class="admonition-header">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><path d="M272 384c9.6-31.9 29.5-59.1 49.2-86.2c0 0 0 0 0 0c5.2-7.1 10.4-14.2 15.4-21.4c19.8-28.5 31.4-63 31.4-100.3C368 78.8 289.2 0 192 0S16 78.8 16 176c0 37.3 11.6 71.9 31.4 100.3c5 7.2 10.2 14.3 15.4 21.4c0 0 0 0 0 0c19.8 27.1 39.7 54.4 49.2 86.2l160 0zM192 512c44.2 0 80-35.8 80-80l0-16-160 0 0 16c0 44.2 35.8 80 80 80zM112 176c0 8.8-7.2 16-16 16s-16-7.2-16-16c0-61.9 50.1-112 112-112c8.8 0 16 7.2 16 16s-7.2 16-16 16c-44.2 0-80 35.8-80 80z"/></svg>
+      <span><br></span>
+    </div>
+      <div class="admonition-content">
+        <p>可能会有疑惑，上面代码以及进入while循环，无论如何是不会执行到下面printf函数。其实，这就是gdb的厉害之处，可以通过gdb命令修改num的值，以便其跳出while循环<br>
+❞</p>
+      </div>
+  </div>
+<p>使用如下命令编译生成可执行文件test_process</p>
+<pre><code class="language-bash">g++ -g test_process.cc -o test_process
+
+</code></pre>
+<p>现在，我们开始尝试启动调试。</p>
+<pre><code class="language-bash">gdb -q ./test_process
+Reading symbols from /root/test_process...done.
+(gdb)
+
+</code></pre>
+<p>这里需要说明下，之所以加-q选项，是想去掉其他不必要的输出，q为quite的缩写。</p>
+<pre><code class="language-bash">(gdb) r
+Starting program: /root/./test_process
+Detaching after fork from child process 37482.
+this is parent,pid = 37478
+[Inferior 1 (process 37478) exited normally]
+Missing separate debuginfos, use: debuginfo-install glibc-2.17-260.el7.x86_64 libgcc-4.8.5-36.el7.x86_64 libstdc++-4.8.5-36.el7.x86_64
+(gdb) attach 37482
+//符号类输出，此处略去
+(gdb) n
+Single stepping until exit from function __nanosleep_nocancel,
+which has no line number information.
+0x00007ffff72b3cc4 in sleep () from /lib64/libc.so.6
+(gdb)
+Single stepping until exit from function sleep,
+which has no line number information.
+main () at test_process.cc:8
+8       while(num==10){
+(gdb)
+
+</code></pre>
+<p>在上述命令中，我们执行了n(next的缩写)，使其重新对while循环的判断体进行判断。</p>
+<pre><code class="language-bash">(gdb) set num = 1
+(gdb) n
+12       printf(&quot;this is child,pid = %d\n&quot;,getpid());
+(gdb) c
+Continuing.
+this is child,pid = 37482
+[Inferior 1 (process 37482) exited normally]
+(gdb)
+
+</code></pre>
+<p>为了退出while循环，我们使用set命令设置了num的值为1，这样条件就会失效退出while循环，进而执行下面的printf()函数；在最后我们执行了c(continue的缩写)命令，支持程序退出。</p>
+
+  <div class="admonition tip">
+    <div class="admonition-header">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><path d="M272 384c9.6-31.9 29.5-59.1 49.2-86.2c0 0 0 0 0 0c5.2-7.1 10.4-14.2 15.4-21.4c19.8-28.5 31.4-63 31.4-100.3C368 78.8 289.2 0 192 0S16 78.8 16 176c0 37.3 11.6 71.9 31.4 100.3c5 7.2 10.2 14.3 15.4 21.4c0 0 0 0 0 0c19.8 27.1 39.7 54.4 49.2 86.2l160 0zM192 512c44.2 0 80-35.8 80-80l0-16-160 0 0 16c0 44.2 35.8 80 80 80zM112 176c0 8.8-7.2 16-16 16s-16-7.2-16-16c0-61.9 50.1-112 112-112c8.8 0 16 7.2 16 16s-7.2 16-16 16c-44.2 0-80 35.8-80 80z"/></svg>
+      <span><br></span>
+    </div>
+      <div class="admonition-content">
+        <p>如果程序正在正常运行，出现了死锁等现象，则可以通过ps获取进程ID，然后根据gdb attach pid进行绑定，进而查看堆栈信息</p>
+      </div>
+  </div>
+<h5 id="指定进程">指定进程</h5>
+<p>默认情况下，GDB调试多进程程序时候，只调试父进程。GDB提供了两个命令，可以通过follow-fork-mode和detach-on-fork来指定调试父进程还是子进程。</p>
+<h6 id="follow-fork-mode">follow-fork-mode</h6>
+<p>该命令的使用方式为：</p>
+<pre><code class="language-bash">(gdb) set follow-fork-mode mode
+
+</code></pre>
+<p>其中，mode有以下两个选项：</p>
+<ul>
+<li>
+<p>parent:父进程，mode的默认选项</p>
+</li>
+<li>
+<p>child:子进程，其目的是告诉 gdb 在目标应用调用fork之后接着调试子进程而不是父进程，因为在Linux系统中fork()系统调用成功会返回两次，一次在父进程，一次在子进程</p>
+</li>
+</ul>
+<pre><code class="language-bash">(gdb) show follow-fork-mode
+Debugger response to a program call of fork or vfork is &quot;parent&quot;.
+(gdb) set follow-fork-mode child
+(gdb) r
+Starting program: /root/./test_process
+[New process 37830]
+this is parent,pid = 37826
+
+^C
+Program received signal SIGINT, Interrupt.
+[Switching to process 37830]
+0x00007ffff72b3e10 in __nanosleep_nocancel () from /lib64/libc.so.6
+Missing separate debuginfos, use: debuginfo-install glibc-2.17-260.el7.x86_64 libgcc-4.8.5-36.el7.x86_64 libstdc++-4.8.5-36.el7.x86_64
+(gdb) n
+Single stepping until exit from function __nanosleep_nocancel,
+which has no line number information.
+0x00007ffff72b3cc4 in sleep () from /lib64/libc.so.6
+(gdb) n
+Single stepping until exit from function sleep,
+which has no line number information.
+main () at test_process.cc:8
+8       while(num==10){
+(gdb) show follow-fork-mode
+Debugger response to a program call of fork or vfork is &quot;child&quot;.
+(gdb)
+
+</code></pre>
+<p>在上述命令中，我们做了如下操作：</p>
+<ol>
+<li>
+<p>show follow-fork-mode:通过该命令来查看当前处于什么模式下，通过输出可以看出，处于parent即父进程模式</p>
+</li>
+<li>
+<p>set follow-fork-mode child:指定调试子进程模式</p>
+</li>
+<li>
+<p>r:运行程序，直接运行程序，此时会进入子进程，然后执行while循环</p>
+</li>
+<li>
+<p>ctrl + c:通过该命令，可以使得GDB收到SIGINT命令，从而暂停执行while循环</p>
+</li>
+<li>
+<p>n(next):继续执行，进而进入到while循环的条件判断处</p>
+</li>
+<li>
+<p>show follow-fork-mode:再次执行该命令，通过输出可以看出，当前处于child模式下</p>
+</li>
+</ol>
+<h6 id="detach-on-fork">detach-on-fork</h6>
+<p>如果一开始指定要调试子进程还是父进程，那么使用follow-fork-mode命令完全可以满足需求;但是如果想在调试过程中，想根据实际情况在父进程和子进程之间来回切换调试呢？</p>
+<p>GDB提供了另外一个命令：</p>
+<pre><code class="language-bash">(gdb) set detach-on-fork mode
+
+</code></pre>
+<p>其中mode有如下两个值：</p>
+<p>on:默认值，即表明只调试一个进程，可以是子进程，也可以是父进程</p>
+<p>off:程序中的每个进程都会被记录，进而我们可以对所有的进程进行调试</p>
+<p>如果选择关闭<code>detach-on-fork</code>模式(mode为off)，那么GDB将保留对所有被fork出来的进程控制，即可用调试所有被fork出来的进程。可用 使用<code>info forks</code>命令列出所有的可被GDB调试的fork进程，并可用使用fork命令从一个fork进程切换到另一个fork进程。</p>
+<ul>
+<li>
+<p>info forks: 打印DGB控制下的所有被fork出来的进程列表。该列表包括fork id、进程id和当前进程的位置</p>
+</li>
+<li>
+<p>fork fork-id: 参数fork-id是GDB分配的内部fork编号，该编号可用通过上面的命令<code>info forks</code>获取</p>
+</li>
+</ul>
+<h3 id="coredump">coredump</h3>
+<p>当我们开发或者使用一个程序时候，最怕的莫过于程序莫名其妙崩溃。为了分析崩溃产生的原因，操作系统的内存内容（包括程序崩溃时候的堆栈等信息）会在程序崩溃的时候dump出来（默认情况下，这个文件名为core.pid，其中pid为进程id），这个dump操作叫做coredump(核心转储)，然后我们可以用调试器调试此文件，以还原程序崩溃时候的场景。</p>
+<p>在我们分析如果用gdb调试coredump文件之前，先需要生成一个coredump，为了简单起见，我们就用如下例子来生成：</p>
+<pre><code class="language-c">#include &lt;stdio.h&gt;
+
+void print(int *v, int size) {
+  for (int i = 0; i &lt; size; ++i) {
+    printf(&quot;elem[%d] = %d\n&quot;, i, v[i]);
+  }
+}
+
+int main() {
+  int v[] = {0, 1, 2, 3, 4};
+  print(v, 1000);
+  return 0;
+}
+
+</code></pre>
+<p>编译并运行该程序：</p>
+<pre><code class="language-bash">g++ -g test_core.cc -o test_core
+./test_core
+
+</code></pre>
+<p>输出如下：</p>
+<pre><code class="language-bash">elem[775] = 1702113070
+elem[776] = 1667200115
+elem[777] = 6648431
+elem[778] = 0
+elem[779] = 0
+段错误(吐核)
+
+</code></pre>
+<p>如我们预期，程序产生了异常，但是却没有生成coredump文件，这是因为在系统默认情况下，coredump生成是关闭的，所以需要设置对应的选项以打开coredump生成。</p>
+<p>针对多线程程序产生的coredump，有时候其堆栈信息并不能完整的去分析原因，这就使得我们得有其他方式。</p>
+<p>18年有一次线上故障，在测试环境一切正常，但是在线上的时候，就会coredump，根据gdb调试coredump，只能定位到了libcurl里面，但却定位不出原因，用了大概两天的时间，发现只有在超时的时候，才会coredump，而测试环境因为配置比较差超时设置的是20ms，而线上是5ms，知道coredump原因后，采用<code>逐步定位缩小范围法</code>，逐步缩小代码范围，最终定位到是libcurl一个bug导致。所以，很多时候，定位线上问题需要结合实际情况，采取合适的方法来定位问题。</p>
+<h5 id="配置">配置</h5>
+<p>配置coredump生成，有临时配置(退出终端后，配置失效)和永久配置两种。</p>
+<h6 id="临时">临时</h6>
+<p>通过ulimit -a<br>
+可以判断当前有没有配置coredump生成：</p>
+<pre><code class="language-bash">ulimit -a
+core file size          (blocks, -c) 0
+data seg size           (kbytes, -d) unlimited
+scheduling priority             (-e) 0
+
+</code></pre>
+<p>从上面输出可以看出core file size后面的数为0，即不生成coredump文件，我们可以通过如下命令进行设置</p>
+<pre><code>ulimit -c size
+
+</code></pre>
+<p>其中size为允许生成的coredump大小，这个一般尽量设置大点，以防止生成的coredump信息不全，笔者一般设置为不限。</p>
+<pre><code>ulimit -c unlimited
+
+</code></pre>
+<p>需要说明的是，临时配置的coredump选项，其默认生成路径为执行该命令时候的路径，可以通过修改配置来进行路径修改。</p>
+<h6 id="永久">永久</h6>
+<p>上面的设置只是使能了core dump功能，缺省情况下，内核在coredump时所产生的core文件放在与该程序相同的目录中，并且文件名固定为core。很显然，如果有多个程序产生core文件，或者同一个程序多次崩溃，就会重复覆盖同一个core文件。</p>
+<p>过修改kernel的参数，可以指定内核所生成的coredump文件的文件名。使用下面命令，可以实现coredump永久配置、存放路径以及生成coredump名称等。</p>
+<pre><code class="language-bash">mkdir -p /www/coredump/
+chmod 777 /www/coredump/
+
+/etc/profile
+ulimit -c unlimited
+
+/etc/security/limits.conf
+*          soft     core   unlimited
+
+echo &quot;/www/coredump/core-%e-%p-%h-%t&quot; &gt; /proc/sys/kernel/core_pattern
+
+</code></pre>
+<h5 id="调试-1">调试</h5>
+<p>现在，我们重新执行如下命令，按照预期产生coredump文件：</p>
+<pre><code class="language-bash">./test_coredump
+
+elem[955] = 1702113070
+elem[956] = 1667200115
+elem[957] = 6648431
+elem[958] = 0
+elem[959] = 0
+段错误(吐核)
+
+</code></pre>
+<p>然后使用下面的命令进行coredump调试：</p>
+<pre><code class="language-bash">gdb ./test_core -c /www/coredump/core_test_core_1640765384_38924 -q
+
+</code></pre>
+<p>输出如下：</p>
+<pre><code class="language-bash">#0  0x0000000000400569 in print (v=0x7fff3293c100, size=1000) at test_core.cc:5
+5     printf(&quot;elem[%d] = %d\n&quot;, i, v[i]);
+Missing separate debuginfos, use: debuginfo-install glibc-2.17-260.el7.x86_64 libgcc-4.8.5-36.el7.x86_64 libstdc++-4.8.5-36.el7.x86_64
+(gdb)
+
+</code></pre>
+<p>可以看出，程序core在了第5行，此时，我们可以通过where命令来查看堆栈回溯信息。</p>
+
+  <div class="admonition tip">
+    <div class="admonition-header">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><path d="M272 384c9.6-31.9 29.5-59.1 49.2-86.2c0 0 0 0 0 0c5.2-7.1 10.4-14.2 15.4-21.4c19.8-28.5 31.4-63 31.4-100.3C368 78.8 289.2 0 192 0S16 78.8 16 176c0 37.3 11.6 71.9 31.4 100.3c5 7.2 10.2 14.3 15.4 21.4c0 0 0 0 0 0c19.8 27.1 39.7 54.4 49.2 86.2l160 0zM192 512c44.2 0 80-35.8 80-80l0-16-160 0 0 16c0 44.2 35.8 80 80 80zM112 176c0 8.8-7.2 16-16 16s-16-7.2-16-16c0-61.9 50.1-112 112-112c8.8 0 16 7.2 16 16s-7.2 16-16 16c-44.2 0-80 35.8-80 80z"/></svg>
+      <span>Tip</span>
+    </div>
+      <div class="admonition-content">
+        <p>在gdb中输入where命令，可以获取堆栈调用信息。当进行coredump调试时候，这个是最基本且最有用处的命令。where命令输出的结果包含程序中 的函数名称和相关参数值。</p>
+      </div>
+  </div>
+<p>通过where命令，我们能够发现程序core在了第5行，那么根据分析源码基本就能定位原因。</p>
+
+  <div class="admonition tip">
+    <div class="admonition-header">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><path d="M272 384c9.6-31.9 29.5-59.1 49.2-86.2c0 0 0 0 0 0c5.2-7.1 10.4-14.2 15.4-21.4c19.8-28.5 31.4-63 31.4-100.3C368 78.8 289.2 0 192 0S16 78.8 16 176c0 37.3 11.6 71.9 31.4 100.3c5 7.2 10.2 14.3 15.4 21.4c0 0 0 0 0 0c19.8 27.1 39.7 54.4 49.2 86.2l160 0zM192 512c44.2 0 80-35.8 80-80l0-16-160 0 0 16c0 44.2 35.8 80 80 80zM112 176c0 8.8-7.2 16-16 16s-16-7.2-16-16c0-61.9 50.1-112 112-112c8.8 0 16 7.2 16 16s-7.2 16-16 16c-44.2 0-80 35.8-80 80z"/></svg>
+      <span>Tip</span>
+    </div>
+      <div class="admonition-content">
+        <p>需要注意的是，在多线程运行的时候，core不一定在当前线程，这就需要我们对代码有一定的了解，能够保证哪块代码是安全的，然后通过thread num切换线程，然后再通过bt或者where命令查看堆栈信息，进而定位coredump原因。</p>
+      </div>
+  </div>
+<h2 id="原理">原理</h2>
+<p>在前面几节，我们讲了gdb的命令，以及这些命令在调试时候的作用，并以例子进行了演示。作为C/C++ coder，要知其然，更要知其所以然。所以，借助本节，我们大概讲下GDB调试的原理。</p>
+<p>gdb通过系统调用<code>ptrace</code>来接管一个进程的执行。ptrace系统调用提供了一种方法使得父进程可以观察和控制其它进程的执行，检查和改变其核心映像以及寄存器。它主要用来实现断点调试和系统调用跟踪。</p>
+<p>
+<div class="img-no-link">
+  <img class="common-markdown-diagram" src="https://cdn.jsdelivr.net/gh/tianyuxbear/images/blog/gdb-principle.png" alt="gdb-principle" />
+</div>
+</p>
+<p>ptrace系统调用定义如下：</p>
+<pre><code class="language-c">#include &lt;sys/ptrace.h&gt;
+long ptrace(enum __ptrace_request request, pid_t pid, void *addr, void *data)
+</code></pre>
+<ul>
+<li>
+<p>pid_t pid：指示 ptrace 要跟踪的进程</p>
+</li>
+<li>
+<p>void *addr：指示要监控的内存地址</p>
+</li>
+<li>
+<p>enum __ptrace_request request：决定了系统调用的功能，几个主要的选项：</p>
+<ul>
+<li>
+<p><code>PTRACE_TRACEME</code>：表示此进程将被父进程跟踪，任何信号（除了<code>SIGKILL</code>）都会暂停子进程，接着阻塞于<code>wait()</code>等待的父进程被唤醒。子进程内部对<code>exec()</code>的调用将发出<code>SIGTRAP</code> 信号，这可以让父进程在子进程新程序开始运行之前就完全控制它</p>
+</li>
+<li>
+<p><code>PTRACE_ATTACH</code>：attach到一个指定的进程，使其成为当前进程跟踪的子进程，而子进程的行为等同于它进行了一次 PTRACE_TRACEME 操作。但需要注意的是，虽然当前进程成为被跟踪进程的父进程，但是子进程使用<code>getppid()</code>的到的仍将是其原始父进程的pid</p>
+</li>
+<li>
+<p><code>PTRACE_CONT</code>：继续运行之前停止的子进程。可同时向子进程交付指定的信号</p>
+</li>
+</ul>
+</li>
+</ul>
+<h3 id="调试原理">调试原理</h3>
+<h4 id="运行并调试新进程">运行并调试新进程</h4>
+<p>运行并调试新进程，步骤如下：</p>
+<ul>
+<li>
+<p>运行gdb exe</p>
+</li>
+<li>
+<p>输入run命令，gdb执行以下操作：</p>
+<ul>
+<li>
+<p>通过fork()系统调用创建一个新进程</p>
+</li>
+<li>
+<p>在新创建的子进程中执行ptrace(PTRACE_TRACEME, 0, 0, 0)操作</p>
+</li>
+<li>
+<p>在子进程中通过execv()系统调用加载指定的可执行文件</p>
+</li>
+</ul>
+</li>
+</ul>
+<h4 id="attach运行的进程">attach运行的进程</h4>
+<p>可以通过gdb attach pid来调试一个运行的进程，gdb将对指定进程执行ptrace(PTRACE_ATTACH, pid, 0, 0)操作。</p>
+<p>需要注意的是，当我们attach一个进程id时候，可能会报如下错误：</p>
+<pre><code class="language-bash">Attaching to process 28849
+ptrace: Operation not permitted.
+
+</code></pre>
+<p>这是因为没有权限进行操作，可以根据启动该进程用户下或者root下进行操作。</p>
+<h3 id="断点原理">断点原理</h3>
+<h4 id="实现原理">实现原理</h4>
+<p>当我们通过b或者break设置断点时候，就是在指定位置插入断点指令，当被调试的程序运行到断点的时候，产生SIGTRAP信号。该信号被gdb捕获并 进行断点命中判断。</p>
+<h4 id="设置原理">设置原理</h4>
+<p>在程序中设置断点，就是先在该位置保存原指令，然后在该位置写入int 3。当执行到int 3时，发生软中断，内核会向子进程发送SIGTRAP信号。当然，这个信号会转发给父进程。然后用保存的指令替换int 3并等待操作恢复。</p>
+<h4 id="命中判断">命中判断</h4>
+<p>gdb将所有断点位置存储在一个<code>链表</code>中。命中判定将被调试程序的当前停止位置与链表中的断点位置进行比较，以查看断点产生的信号。</p>
+<h4 id="条件判断">条件判断</h4>
+<p>在断点处恢复指令后，增加了一个条件判断。如果表达式为真，则触发断点。由于需要判断一次，添加条件断点后，是否触发条件断点，都会影响性能。在 x86 平台上，部分硬件支持硬件断点。不是在条件断点处插入 int 3，而是插入另一条指令。当程序到达这个地址时，不是发出int 3信号，而是进行比较。特定寄存器的内容和某个地址，然后决定是否发送int 3。因此，当你的断点位置被程序频繁“通过”时，尽量使用硬件断点，这将有助于提高性能。</p>
+<h3 id="单步原理">单步原理</h3>
+<p>这个ptrace函数本身就支持，可以通过ptrace(PTRACE_SINGLESTEP, pid,&hellip;)调用来实现单步。</p>
+<pre><code class="language-c"> printf(&quot;attaching to PID %d\n&quot;, pid);
+    if (ptrace(PTRACE_ATTACH, pid, 0, 0) != 0)
+    {
+        perror(&quot;attach failed&quot;);
+    }
+    int waitStat = 0;
+    int waitRes = waitpid(pid, &amp;waitStat, WUNTRACED);
+    if (waitRes != pid || !WIFSTOPPED(waitStat))
+    {
+        printf(&quot;unexpected waitpid result!\n&quot;);
+        exit(1);
+    }
+   
+    int64_t numSteps = 0;
+    while (true) {
+        auto res = ptrace(PTRACE_SINGLESTEP, pid, 0, 0);
+    }
+
+</code></pre>
+<p>上述代码，首先接收一个pid，然后对其进行attach，最后调用ptrace进行单步调试。</p>
+<h2 id="其它-1">其它</h2>
+<p>借助本文，简单介绍下笔者工作过程中使用的一些其他命令或者工具。</p>
+<h3 id="pstack">pstack</h3>
+<p>此命令可显示每个进程的栈跟踪。pstack 命令必须由相应进程的属主或 root 运行。可以使用 pstack 来确定进程挂起的位置。此命令允许使用的唯一选项是要检查的进程的 PID。</p>
+<p>这个命令在排查进程问题时非常有用，比如我们发现一个服务一直处于work状态（如假死状态，好似死循环），使用这个命令就能轻松定位问题所在；可以在一段时间内，多执行几次pstack，若发现代码栈总是停在同一个位置，那个位置就需要重点关注，很可能就是出问题的地方；</p>
+<p>以前面的多线程代码为例，其进程ID是4507(在笔者本地)，那么通过</p>
+<p>pstack 4507输出结果如下：</p>
+<pre><code class="language-bash">Thread 3 (Thread 0x7f07aaa69700 (LWP 45708)):
+#0  0x00007f07aab2ee2d in nanosleep () from /lib64/libc.so.6#1  0x00007f07aab2ecc4 in sleep () from /lib64/libc.so.6#2  0x00007f07ab403eb9 in std::this_thread::__sleep_for(std::chrono::duration&lt;long, std::ratio&lt;1l, 1l&gt; &gt;, std::chrono::duration&lt;long, std::ratio&lt;1l, 1000000000l&gt; &gt;) () from /lib64/libstdc++.so.6#3  0x00000000004018cc in void std::this_thread::sleep_for&lt;long, std::ratio&lt;1l, 1l&gt; &gt;(std::chrono::duration&lt;long, std::ratio&lt;1l, 1l&gt; &gt; const&amp;) ()#4  0x00000000004012de in fun_int(int) ()#5  0x0000000000404696 in int std::_Bind_simple&lt;int (*(int))(int)&gt;::_M_invoke&lt;0ul&gt;(std::_Index_tuple&lt;0ul&gt;) ()#6  0x000000000040443d in std::_Bind_simple&lt;int (*(int))(int)&gt;::operator()() ()#7  0x000000000040436e in std::thread::_Impl&lt;std::_Bind_simple&lt;int (*(int))(int)&gt; &gt;::_M_run() ()#8  0x00007f07ab404070 in ?? () from /lib64/libstdc++.so.6#9  0x00007f07ab65ddd5 in start_thread () from /lib64/libpthread.so.0#10 0x00007f07aab67ead in clone () from /lib64/libc.so.6Thread 2 (Thread 0x7f07aa268700 (LWP 45709)):#0  0x00007f07aab2ee2d in nanosleep () from /lib64/libc.so.6#1  0x00007f07aab2ecc4 in sleep () from /lib64/libc.so.6#2  0x00007f07ab403eb9 in std::this_thread::__sleep_for(std::chrono::duration&lt;long, std::ratio&lt;1l, 1l&gt; &gt;, std::chrono::duration&lt;long, std::ratio&lt;1l, 1000000000l&gt; &gt;) () from /lib64/libstdc++.so.6#3  0x00000000004018cc in void std::this_thread::sleep_for&lt;long, std::ratio&lt;1l, 1l&gt; &gt;(std::chrono::duration&lt;long, std::ratio&lt;1l, 1l&gt; &gt; const&amp;) ()#4  0x0000000000401340 in fun_string(std::string const&amp;) ()#5  0x000000000040459f in int std::_Bind_simple&lt;int (*(char const*))(std::string const&amp;)&gt;::_M_invoke&lt;0ul&gt;(std::_Index_tuple&lt;0ul&gt;) ()#6  0x000000000040441f in std::_Bind_simple&lt;int (*(char const*))(std::string const&amp;)&gt;::operator()() ()#7  0x0000000000404350 in std::thread::_Impl&lt;std::_Bind_simple&lt;int (*(char const*))(std::string const&amp;)&gt; &gt;::_M_run() ()#8  0x00007f07ab404070 in ?? () from /lib64/libstdc++.so.6#9  0x00007f07ab65ddd5 in start_thread () from /lib64/libpthread.so.0#10 0x00007f07aab67ead in clone () from /lib64/libc.so.6Thread 1 (Thread 0x7f07aba80740 (LWP 45707)):#0  0x00007f07ab65ef47 in pthread_join () from /lib64/libpthread.so.0#1  0x00007f07ab403e37 in std::thread::join() () from /lib64/libstdc++.so.6#2  0x0000000000401455 in main ()
+</code></pre>
+<p>在上述输出结果中，将进程内部的详细信息都输出在终端，以方便分析问题。</p>
+<h3 id="ldd">ldd</h3>
+<p>在我们编译过程中通常会提示编译失败，通过输出错误信息发现是找不到函数定义，再或者编译成功了，但是运行时候失败(往往是因为依赖了非正常版本的lib库导致)，这个时候，我们就可以通过ldd来分析该可执行文件依赖了哪些库以及这些库所在的路径。</p>
+<p>用来查看程式运行所需的共享库,常用来解决程式因缺少某个库文件而不能运行的一些问题。</p>
+<p>仍然查看可执行程序test_thread的依赖库，输出如下：</p>
+<pre><code class="language-bash">ldd -r ./test_thread
+ linux-vdso.so.1 =&gt;  (0x00007ffde43bc000)
+ libpthread.so.0 =&gt; /lib64/libpthread.so.0 (0x00007f8c5e310000)
+ libstdc++.so.6 =&gt; /lib64/libstdc++.so.6 (0x00007f8c5e009000)
+ libm.so.6 =&gt; /lib64/libm.so.6 (0x00007f8c5dd07000)
+ libgcc_s.so.1 =&gt; /lib64/libgcc_s.so.1 (0x00007f8c5daf1000)
+ libc.so.6 =&gt; /lib64/libc.so.6 (0x00007f8c5d724000)
+ /lib64/ld-linux-x86-64.so.2 (0x00007f8c5e52c000)
+
+</code></pre>
+<p>在上述输出中：</p>
+<ul>
+<li>
+<p>第一列：程序需要依赖什么库</p>
+</li>
+<li>
+<p>第二列：系统提供的与程序需要的库所对应的库</p>
+</li>
+<li>
+<p>第三列：库加载的开始地址</p>
+</li>
+</ul>
+<p>在有时候，我们通过ldd查看依赖库的时候，会提示找不到库，如下：</p>
+<pre><code class="language-bash">ldd -r test_process
+ linux-vdso.so.1 =&gt;  (0x00007ffc71b80000)
+ libstdc++.so.6 =&gt; /lib64/libstdc++.so.6 (0x00007fe4badd5000)
+ libm.so.6 =&gt; /lib64/libm.so.6 (0x00007fe4baad3000)
+ libgcc_s.so.1 =&gt; /lib64/libgcc_s.so.1 (0x00007fe4ba8bd000)
+ libc.so.6 =&gt; /lib64/libc.so.6 (0x00007fe4ba4f0000)
+ /lib64/ld-linux-x86-64.so.2 (0x00007fe4bb0dc000)
+  liba.so =&gt; not found
+
+</code></pre>
+<p>比如上面最后一句提示，liba.so找不到，这个时候，需要我们知道liba.so的路径，比如在/path/to/liba.so，那么可以有下面两种方式：</p>
+<pre><code class="language-bash">LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/path/to/
+
+</code></pre>
+<p>这样在通过ldd查看，就能找到对应的lib库，但是这个缺点是临时的，即退出终端后，再执行ldd，仍然会提示找不到该库，所以就有了另外一种方式，即通过修改/etc/ld.so.conf，在该文件的后面加上需要的路径，即</p>
+<pre><code class="language-bash">include ld.so.conf.d/*.conf
+/path/to/
+
+</code></pre>
+<p>然后通过如下命令，即可永久生效</p>
+<pre><code class="language-bash"> /sbin/ldconfig
+
+</code></pre>
+<h3 id="cfilt">c++filt</h3>
+<p>因为c++支持重载，也就引出了编译器的<code>name mangling</code>机制，对函数进行重命名。</p>
+<p>我们通过strings命令查看test_thread中的函数信息(仅输出fun等相关)</p>
+<pre><code class="language-bash">strings test_thread | grep fun_
+in fun_int n =
+in fun_string s =
+_GLOBAL__sub_I__Z7fun_inti
+_Z10fun_stringRKSs
+</code></pre>
+<p>可以看到_Z10fun_stringRKSs这个函数，如果想知道这个函数定义的话，可以使用c++filt命令，如下：</p>
+<pre><code class="language-c"> c++filt _Z10fun_stringRKSsfun_string(std::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt; const&amp;)
+</code></pre>
+<p>通过上述输出，我们可以将编译器生成的函数名还原到我们代码中的函数名即fun_string。</p>
+<h2 id="结语">结语</h2>
+<p>GDB是一个在Linux上进行开发的一个必不可少的调试工具，使用场景依赖于具体的需求或者遇到的具体问题。在我们的日常开发工作中，熟练使用GDB加以辅助，能够使得开发过程事半功倍。</p>
+<p>本文从一些简单的命令出发，通过举例调试可执行程序(单线程、多线程以及多进程场景)、coredump文件等各个场景，使得大家能够更加直观的了解GDB的使用。GDB功能非常强大，笔者工作中使用的都是非常基本的一些功能，如果想深入理解GDB，则需要去官网进行阅读了解。</p>
+
+  <div class="admonition tip">
+    <div class="admonition-header">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><path d="M272 384c9.6-31.9 29.5-59.1 49.2-86.2c0 0 0 0 0 0c5.2-7.1 10.4-14.2 15.4-21.4c19.8-28.5 31.4-63 31.4-100.3C368 78.8 289.2 0 192 0S16 78.8 16 176c0 37.3 11.6 71.9 31.4 100.3c5 7.2 10.2 14.3 15.4 21.4c0 0 0 0 0 0c19.8 27.1 39.7 54.4 49.2 86.2l160 0zM192 512c44.2 0 80-35.8 80-80l0-16-160 0 0 16c0 44.2 35.8 80 80 80zM112 176c0 8.8-7.2 16-16 16s-16-7.2-16-16c0-61.9 50.1-112 112-112c8.8 0 16 7.2 16 16s-7.2 16-16 16c-44.2 0-80 35.8-80 80z"/></svg>
+      <span><br></span>
+    </div>
+      <div class="admonition-content">
+        <p>本文从构思到完成，大概用了三周时间，写作过程是痛苦的(需要整理资料以及构建各种场景，以及将各种现场还原)，同时又是收获满满的。通过本文，进一步加深了对GDB的底层原理理解。</p>
+      </div>
+  </div>
+<h2 id="参考">参考</h2>
+<p>
+<a href="https://www.codetd.com/en/article/13107993"  target="_blank" rel="noopener noreferrer" >https://www.codetd.com/en/article/13107993</a>
+</p>
+<p>
+<a href="https://www.codetd.com/en/article/13107993https://users.ece.utexas.edu/~adnan/gdb-refcard.pdf"  target="_blank" rel="noopener noreferrer" >https://www.codetd.com/en/article/13107993https://users.ece.utexas.edu/~adnan/gdb-refcard.pdf</a>
+ </p>
+<p>
+<a href="https://www.cloudsavvyit.com/10921/debugging-with-gdb-getting-started/"  target="_blank" rel="noopener noreferrer" >https://www.cloudsavvyit.com/10921/debugging-with-gdb-getting-started/</a>
+ </p>
+<p>
+<a href="https://blog.birost.com/a?ID=00650-b03e2257-94bf-41f3-b0fc-d352d5b02431"  target="_blank" rel="noopener noreferrer" >https://blog.birost.com/a?ID=00650-b03e2257-94bf-41f3-b0fc-d352d5b02431</a>
+ </p>
+<p>
+<a href="https://www.cnblogs.com/xsln/p/ptrace.html"  target="_blank" rel="noopener noreferrer" >https://www.cnblogs.com/xsln/p/ptrace.html</a>
+</p>
+
+</main>
+
+<style>
+ 
+.article-meta {
+    text-align: center;
+    text-decoration: none;
+    background: #efefef;
+    padding: 1px;
+    border-radius: 5px;
+}
+
+.article-meta-title {
+    font-size: 1em;
+}
+
+.article-meta-info {
+    color: #666;
+    font-size: 0.9rem;
+    margin: -0.6rem 0 0.2rem 10px;
+    text-align: left;
+}
+
+.article-meta-info a {
+    color: inherit;
+    text-decoration: none;
+    transition: color 0.3s ease;
+}
+</style>
+
+
+
+<h1 style="font-size: 1.2rem; margin: 2.5rem 0 0.1rem 0;">Comment</h1>
+<div class="cusdis-comments">
+  <div id="cusdis_thread"
+    data-host="https://cusdis.com"
+    data-app-id="f814d12b-d446-40cf-b892-82383448700c"
+    data-page-id="dfb16c641cea37298057bf3820c4a7c8"
+    data-page-url="https://codebearjourney.top/%E6%B2%99%E6%B5%B7%E6%8B%BE%E8%B4%9D/gdb%E8%B0%83%E8%AF%95-%E4%BB%8E%E5%85%A5%E9%97%A8%E5%AE%9E%E8%B7%B5%E5%88%B0%E5%8E%9F%E7%90%86/"
+    data-page-title="GDB 调试:从入门实践到原理 | [转载](https://mp.weixin.qq.com/s/XO462ijLN3i0q7QKcb-f7Q)"
+  ></div>
+  <script async defer src="https://cdn.jsdelivr.net/gh/captainwc/cdn-release/website/cusdis/cusdis.es.min.js"></script>
+</div>
+
+<style>
+.cusdis-comments {
+  border-top: 2px dashed #cfcfcf;
+  padding-top: 1.3rem;
+}
+
+#cusdis_thread iframe {
+  min-height: 500px !important;
+  overflow: visible !important;
+}
+</style>
+
+
+<footer>
+  
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex/dist/katex.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/katex/dist/katex.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/captainwc/cdn-release/website/js/auto-render.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/captainwc/cdn-release/website/js/math-code.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/captainwc/cdn-release/website/js/render-katex.min.js"></script>
+
+  <script src="https://cdn.jsdelivr.net/gh/captainwc/cdn-release/website/js/center-img.min.js"></script>
+  
+  
+
+<div id="menuBtnContainer">
+    
+    <button id="menuBtn"><i class="fa-solid fa-screwdriver-wrench"></i></button>
+
+    
+    <button id="backToBottomBtn" class="menu-popup-btn top-btn"><i class="fa-solid fa-square-caret-down"></i></button>
+    <button id="backToTopBtn" class="menu-popup-btn top-btn"><i class="fa-solid fa-square-caret-up"></i></button>
+
+    
+    <div class="menu-popup-btn edit-btn">
+        <a href='https://github.com/tianyuxbear/tianyuxbear.github.io/edit/master/content/%e6%b2%99%e6%b5%b7%e6%8b%be%e8%b4%9d/GDB%e8%b0%83%e8%af%95-%e4%bb%8e%e5%85%a5%e9%97%a8%e5%ae%9e%e8%b7%b5%e5%88%b0%e5%8e%9f%e7%90%86.md'
+            target="_blank" rel="noopener">
+            <i class="fa-solid fa-square-pen"></i>
+        </a>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var menuBtn = document.getElementById('menuBtn');
+        var menuBtnContainer = document.getElementById('menuBtnContainer');
+        var backToTopBtn = document.getElementById('backToTopBtn');
+        var backToBottomBtn = document.getElementById('backToBottomBtn');
+        var popupBtns = document.querySelectorAll('.menu-popup-btn');
+        var hoverTimeout;
+
+        
+        menuBtnContainer.classList.add('visible');
+
+        
+        function showPopupBtns() {
+            clearTimeout(hoverTimeout);
+            menuBtnContainer.classList.add('active');
+        }
+
+        
+        function hidePopupBtns() {
+            hoverTimeout = setTimeout(function() {
+                menuBtnContainer.classList.remove('active');
+            }, 300);
+        }
+
+        
+        menuBtnContainer.addEventListener('mouseenter', showPopupBtns);
+        menuBtnContainer.addEventListener('mouseleave', hidePopupBtns);
+
+        
+        menuBtn.addEventListener('click', function() {
+            if (menuBtnContainer.classList.contains('active')) {
+                menuBtnContainer.classList.remove('active');
+            } else {
+                showPopupBtns();
+            }
+        });
+
+        
+        backToTopBtn.addEventListener('click', function() {
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+        });
+
+        
+        backToBottomBtn.addEventListener('click', function() {
+            window.scrollTo({
+                top: document.body.scrollHeight,
+                behavior: 'smooth'
+            });
+        });
+    });
+</script>
+
+<style>
+     
+    #menuBtnContainer {
+        position: fixed;
+        right: 20px;
+        bottom: 20px;
+        z-index: 999;
+        opacity: 0.6;
+        visibility: visible;
+        transition: opacity 0.3s;
+    }
+
+    #menuBtnContainer:hover {
+        opacity: 1;
+    }
+
+     
+    #menuBtn {
+        border-radius: 8px;
+        border: none;
+        color: #aaa;
+        font-family: "Maple Mono NF CN";
+        font-size: 1.2rem;
+        transition: background 0.3s;
+        cursor: pointer;
+        background: #EFEFEF;
+        z-index: 1000;
+        position: relative;
+    }
+
+    #menuBtn:hover {
+        background: #BEC2B3;
+        color: #666;
+    }
+
+     
+    .menu-popup-btn {
+        position: absolute;
+        opacity: 0;
+        visibility: hidden;
+        border-radius: 8px;
+        border: none;
+        color: #aaa;
+        font-family: "Maple Mono NF CN";
+        font-size: 1.3rem;
+        transition: all 0.3s ease;
+        background: #EFEFEF;
+        cursor: pointer;
+        z-index: 999;
+    }
+
+     
+    .menu-popup-btn.top-btn {
+        right: 0;
+        transform: translateY(0) scale(0.8);
+    }
+
+     
+    .menu-popup-btn.edit-btn {
+        bottom: 0;
+        transform: translateX(0) scale(0.8);
+        padding: 1px 6.6px 0px 6.6px;
+    }
+
+    .menu-popup-btn.edit-btn a {
+        color: #ccc;
+        text-decoration: none;
+        background: none !important;
+        transition: opacity 0.2s;
+        padding: 0;
+        margin: 0;
+    }
+
+     
+    #menuBtnContainer.active .menu-popup-btn {
+        opacity: 1;
+        visibility: visible;
+    }
+
+     
+    #menuBtnContainer.active #backToBottomBtn {
+        transform: translateY(-60px) scale(1);
+    }
+
+     
+    #menuBtnContainer.active #backToTopBtn {
+        transform: translateY(-110px) scale(1);
+    }
+
+     
+    #menuBtnContainer.active .edit-btn {
+        transform: translateX(-60px) scale(1);
+    }
+
+     
+    .menu-popup-btn:hover,
+    .menu-popup-btn.edit-btn:hover {
+        background: #BEC2B3;
+        color: #666;
+    }
+
+    .menu-popup-btn.edit-btn:hover a {
+        color: #666;
+    }
+
+     
+    @media (max-width: 768px) {
+        #menuBtnContainer {
+            right: 15px;
+            bottom: 15px;
+        }
+
+        #menuBtnContainer.active #backToBottomBtn {
+            transform: translateY(-50px) scale(1);
+        }
+
+        #menuBtnContainer.active #backToTopBtn {
+            transform: translateY(-90px) scale(1);
+        }
+
+        #menuBtnContainer.active .edit-btn {
+            transform: translateX(-50px) scale(1);
+        }
+    }
+</style>
+
+
+
+  <script>
+  document.addEventListener('DOMContentLoaded', function() {
+    
+    document.querySelectorAll('ul').forEach(ul => {
+      
+      const isTodoList = Array.from(ul.children).some(li => {
+        return li.innerHTML.includes('type="checkbox"')
+      });
+
+      if (isTodoList) {
+        
+        const todolistContainer = document.createElement('div');
+        todolistContainer.className = 'todolist';
+
+        
+        addTaskProgressBar(ul, todolistContainer);
+
+        
+        ul.querySelectorAll('li').forEach(li => {
+          const todoItemDiv = document.createElement('div');
+          todoItemDiv.className = 'todo-item';
+
+          
+          const isChecked = li.innerHTML.includes('checked');
+          const content = li.innerHTML
+            .replace(/<input[^>]+>/g, '') 
+            .trim();
+
+          
+          const checkedIcon = `<svg t="1742522457277" class="todo-item-checked-icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="12342"><path d="M512 938.688A426.624 426.624 0 1 1 512 85.376a426.624 426.624 0 0 1 0 853.312z m0-85.312A341.312 341.312 0 1 0 512 170.688a341.312 341.312 0 0 0 0 682.688z m-42.56-170.688L288.448 501.632l60.288-60.288L469.44 561.92l241.28-241.28 60.416 60.288-301.696 301.696z" p-id="12343"></path></svg>`;
+          const uncheckedIcon = `<svg t="1742522354856" class="todo-item-unchecked-icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="11882"><path d="M512 938.666667C276.352 938.666667 85.333333 747.648 85.333333 512S276.352 85.333333 512 85.333333s426.666667 191.018667 426.666667 426.666667-191.018667 426.666667-426.666667 426.666667z m0-85.333334a341.333333 341.333333 0 1 0 0-682.709333A341.333333 341.333333 0 0 0 512 853.333333z" p-id="11883"></path></svg>`;
+
+          
+          todoItemDiv.innerHTML = `
+            <span class="todo-item-checkbox">
+              ${isChecked ? checkedIcon : uncheckedIcon}
+            </span>
+            <span class="todo-item-content">
+              ${isChecked ? `<del>${content}</del>` : content}
+            </span>
+          `;
+
+          
+          todolistContainer.appendChild(todoItemDiv);
+        });
+
+        
+        ul.parentNode.replaceChild(todolistContainer, ul);
+      }
+    });
+
+    function addTaskProgressBar(ul, todolistContainer) {
+      
+      const totalTasks = ul.children.length;
+      const finishedTasks = Array.from(ul.children).filter(li => li.innerHTML.includes('checked')).length;
+
+      
+      const progressContainer = document.createElement('div');
+      progressContainer.className = 'todo-progress';
+
+      
+      const counterSpan = document.createElement('span');
+      counterSpan.className = 'todo-progress-counter';
+      counterSpan.textContent = `${finishedTasks}/${totalTasks}`;
+
+      
+      const progressTrack = document.createElement('div');
+      progressTrack.className = 'todo-progress-bar';
+
+      
+      const progressFill = document.createElement('div');
+      progressFill.className = 'todo-progress-bar-fill';
+      progressFill.style.width = `${(finishedTasks / totalTasks) * 100}%`;
+
+      
+      const flagSpan = document.createElement('span');
+      flagSpan.className = 'todo-progress-flag';
+      flagSpan.innerHTML = `${finishedTasks === totalTasks ? '🌟' : '🚧'}`;
+
+      
+      progressTrack.appendChild(progressFill);
+      progressContainer.append(flagSpan, progressTrack, counterSpan);
+      todolistContainer.appendChild(progressContainer);
+    }
+  });
+</script>
+
+<style>
+   
+  .todolist {
+    padding-left: 0.6rem;
+  }
+
+  .todo-item {
+    padding: 0.2rem;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    margin: -0.5rem 0 -0.5rem -0.7rem;
+    line-height: 1.3;
+  }
+
+  .todo-item-checkbox {
+    flex-shrink: 0;
+    font-size: 1.2em;
+
+    svg {
+      margin-top: 0.46rem;
+      width: 16px !important;
+      height: 16px !important;
+    }
+  }
+
+  .todo-item-checked-icon {
+    fill: #707070;
+  }
+
+  .todo-item-unchecked-icon {
+    fill: #1A61CC;
+  }
+
+  .todo-item-unchecked-icon:hover {
+    fill: red;
+    width: 20px !important;
+    height: 20px !important;
+  }
+
+  .todo-item-content {
+    flex: 1;
+    word-break: break-all;
+
+    p {
+      margin: 0;
+      padding: 0;
+    }
+  }
+
+   
+  .todo-progress {
+    display: flex;
+     
+    align-items: center;
+    gap: 0.3rem;
+     
+    margin: 0.1rem 0 0 0.7rem;
+  }
+
+  .todo-progress-counter {
+     
+    font-family: "LXGW WenKai";
+    font-size: 0.8rem;
+    color: #707070;
+  }
+
+  .todo-progress-bar {
+    flex: 1;
+    height: 2px;
+    background: #a64036;
+    border-radius: 10px;
+    position: relative;
+    overflow: hidden;
+    max-width: 20%;
+  }
+
+  .todo-progress-bar-fill {
+    height: 100%;
+    background: #84a729;
+    transition: width 0.3s ease;
+  }
+
+  .todo-progress-flag {
+    display: none;
+    position: relative;
+    font-size: 0.9rem;
+  }
+</style>
+
+  
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.11.1/build/styles/github.min.css">
+
+
+<script src="https://cdn.jsdelivr.net/gh/captainwc/cdn-release/website/highlight/highlightjs-cnblogs.min.js"></script>
+
+<script>document.addEventListener('DOMContentLoaded', () => hljs.highlightAll())</script>
+
+  
+  <script>
+    const langToNerdFontMap = {
+        bash: '\ue760',
+        bazel: '\ue63a',
+        c: '\ue61e',
+        cmake: '\ue794',
+        cpp: '\ue61d',
+        'c++': '\ue61d',
+        css: '\ue749',
+        diff: '\ueae1',
+        go: '\udb81\udfd3',
+        html: '\ue736',
+        java: '\uedaf',
+        javascript: '\ue781',
+        json: '\ueb0f',
+        lua: '\ue620',
+        makefile: '\ue673',
+        plantuml: '\ue8cb',
+        python: '\ued1b',
+        rust: '\udb85\ude17',
+        shell: '\udb84\udd83',
+        sql: '\udb82\udc66',
+        typescript: '\ue8ca',
+        uml: '\ue8cb',
+        xml: '\udb81\uddc0',
+    };
+
+    document.addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('pre > code').forEach(codeBlock => {
+            const parentElement = codeBlock.parentElement;
+
+            
+            const tools = document.createElement('div');
+            tools.className = 'code-tools';
+
+            
+            const foldBtn = document.createElement('button');
+            foldBtn.className = 'fold-btn';
+            foldBtn.innerHTML = '\uf48c';
+            foldBtn.style.display = 'none';
+
+            
+            const langLabel = document.createElement('div');
+            langLabel.className = 'lang-label';
+            const lang = [...codeBlock.classList].find(c => c.startsWith('language-'))?.split('-')[1] || 'text';
+            const icon = langToNerdFontMap[lang.toLowerCase()];
+            langLabel.textContent = icon || lang.toUpperCase();
+            if (!icon) langLabel.style.fontSize = '0.8rem';
+
+            
+            const copyBtn = document.createElement('button');
+            copyBtn.className = 'copy-btn';
+            copyBtn.textContent = '\uf4bb COPY';
+
+            
+            const scale_height = 500;       
+            const collapsed_height = 300;   
+            const checkHeight = () => {
+                const originalDisplay = parentElement.style.display;
+                parentElement.style.display = 'block';
+                const fullHeight = parentElement.scrollHeight;
+                parentElement.style.display = originalDisplay;
+                return fullHeight > scale_height;
+            };
+
+            
+            if (checkHeight()) {
+                foldBtn.style.display = 'flex';
+                parentElement.dataset.fullHeight = `${parentElement.scrollHeight}px`;
+
+                
+                parentElement.classList.add('collapsed');
+                parentElement.style.maxHeight = `${collapsed_height}px`;
+                foldBtn.innerHTML = '\uf4d9';
+
+                parentElement.style.overflowY = 'auto'; 
+
+                foldBtn.addEventListener('click', () => {
+                    const isCollapsed = parentElement.classList.toggle('collapsed');
+                    foldBtn.innerHTML = isCollapsed ? '\uf4d9' : '\uf48c';
+
+                    if (isCollapsed) {
+                        parentElement.style.maxHeight = `${collapsed_height}px`;
+                        parentElement.style.overflowX = 'auto';
+                    } else {
+                        parentElement.style.maxHeight = 'none';
+                        void parentElement.offsetHeight;
+                        parentElement.dataset.fullHeight = `${parentElement.scrollHeight}px`;
+                    }
+                });
+            }
+
+            
+            copyBtn.addEventListener('click', async () => {
+                try {
+                    await navigator.clipboard.writeText(codeBlock.textContent);
+                    copyBtn.textContent = '\uf00c COPIED!';
+                    setTimeout(() => copyBtn.textContent = '\uf4bb COPY', 2000);
+                } catch (err) {
+                    console.error('复制失败:', err);
+                }
+            });
+
+            
+            tools.append(langLabel, foldBtn, copyBtn);
+            parentElement.prepend(tools);
+        });
+    });
+</script>
+
+<style>
+ 
+.code-tools {
+    position: absolute;
+    right: 10px;
+    top: 20px;
+    display: flex;
+    align-items: center;
+    opacity: 0;
+    transform: translateY(-10px);
+    transition: all 0.2s ease;
+    pointer-events: none;
+    font-family: "Maple Mono NF CN";
+}
+
+.fold-btn {
+    cursor: pointer;
+    border: none;
+    color: #666;
+    background: none;
+    font-family: "Maple Mono NF CN";
+    font-size: 0.9rem;
+    line-height: 1.2;
+    margin: 0 0 0 0.45rem;
+    transition: all 0.2s ease;
+}
+
+ 
+.lang-label {
+     
+    color: #666;
+    font-size: 1.2rem;
+    line-height: 1.2;
+}
+
+ 
+.copy-btn {
+    background-color: #f0f0f0;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    padding: 0 0.3rem;
+    margin: 0 0 0 0.6rem;
+    color: #333;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    font-size: 0.6rem;
+    line-height: 1.8;
+    cursor: pointer;
+    font-family: "Maple Mono NF CN";
+}
+
+ 
+pre:hover .code-tools {
+    opacity: 1;
+    pointer-events: auto;
+}
+</style>
+
+
+  
+<script>
+    
+    window.diagramRenderUtils = {
+        
+        getOrCreateFullscreenOverlay: function() {
+            let overlay = document.querySelector('.fullscreen-overlay');
+            if (!overlay) {
+                overlay = document.createElement('div');
+                overlay.className = 'fullscreen-overlay';
+                document.body.appendChild(overlay);
+
+                
+                overlay.addEventListener('dblclick', (e) => {
+                    if (e.target === overlay) {
+                        overlay.classList.remove('active');
+                    }
+                });
+
+                
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape' && overlay.classList.contains('active')) {
+                        overlay.classList.remove('active');
+                    }
+                });
+            }
+            return overlay;
+        },
+
+        
+        createDiagramContainer: function() {
+            const container = document.createElement('div');
+            container.className = 'code-rendered-diagram';
+            return container;
+        },
+
+        
+        createCopyButton: function() {
+            const copyButton = document.createElement('button');
+            copyButton.className = 'code-rendered-diagram-copy-button';
+            copyButton.innerHTML = '&#xf4bb; COPY-SRC';
+            return copyButton;
+        },
+
+        
+        createFullscreenButton: function() {
+            const fullscreenButton = document.createElement('button');
+            fullscreenButton.className = 'code-rendered-diagram-fullscreen-button';
+            fullscreenButton.innerHTML = '&#xf065; FULL';
+            return fullscreenButton;
+        },
+
+        
+        makeSVGTransparent: function(svgText) {
+            const doc = new DOMParser().parseFromString(svgText, 'image/svg+xml');
+            doc.querySelectorAll('[fill="#ffffff"],[fill="white"],[style*="fill: white"]')
+                .forEach(el => {
+                    if (el.tagName !== 'svg') {
+                        el.setAttribute('fill', 'transparent');
+                    }
+                });
+            doc.documentElement.style.backgroundColor = 'transparent';
+            return new XMLSerializer().serializeToString(doc);
+        },
+
+        
+        setupCopyButton: function(copyButton, codeContent) {
+            copyButton.addEventListener('click', async () => {
+                try {
+                    await navigator.clipboard.writeText(codeContent);
+                    copyButton.textContent = '\uf00c COPIED!';
+                    setTimeout(() => copyButton.innerHTML = '&#xf4bb; COPY-SRC', 2000);
+                } catch (err) {
+                    copyButton.textContent = 'FAILED';
+                    console.error('复制失败:', err);
+                }
+            });
+        },
+
+        
+        setupShowSourceCode: function(imageElem, sourceCode) {
+            
+            imageElem.addEventListener('contextmenu', function(e) {
+                e.preventDefault();
+
+                
+                const pre = document.createElement('pre');
+                const codeElem = document.createElement('code');
+                codeElem.textContent = sourceCode;
+                pre.appendChild(codeElem);
+
+                
+                window.diagramRenderUtils.popupWindowUtils.create({
+                    title: 'Source Code',
+                    content: pre,
+                    x: e.clientX,
+                    y: e.clientY,
+                    minWidth: 300,
+                    maxWidth: '60%',
+                    maxHeight: '60%',
+                    closeOnClickOutside: true,
+                    closeOnEsc: true,
+                    className: 'source-code-viewer'
+                });
+            });
+        },
+
+        
+        setupFullscreenButton: function(fullscreenButton, contentElement, isImage = false) {
+            fullscreenButton.addEventListener('click', () => {
+                const overlay = this.getOrCreateFullscreenOverlay();
+                let clonedContent;
+
+                if (isImage) {
+                    
+                    clonedContent = contentElement.cloneNode(true);
+                } else {
+                    
+                    const svgElement = contentElement.querySelector('svg');
+                    if (!svgElement) return;
+                    clonedContent = svgElement.cloneNode(true);
+                }
+
+                overlay.innerHTML = '';
+
+                
+                const exitButton = document.createElement('button');
+                exitButton.className = 'fullscreen-exit-button';
+                exitButton.innerHTML = 'ESC';
+                exitButton.onclick = () => overlay.classList.remove('active');
+
+                overlay.appendChild(exitButton);
+                overlay.appendChild(clonedContent);
+                overlay.classList.add('active');
+
+                
+                this.setupZoomAndDrag(overlay, isImage ? 'img' : 'svg');
+            });
+        },
+
+        
+        setupZoomAndDrag: function(overlay, selector) {
+            let scale = 1;
+            let posX = 0;
+            let posY = 0;
+            let isDragging = false;
+            let startX = 0;
+            let startY = 0;
+
+            const element = overlay.querySelector(selector);
+
+            
+            overlay.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                const delta = e.deltaY * -0.002;
+                const newScale = Math.min(Math.max(scale + delta, 0.1), 10);
+
+                
+                const rect = element.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left;
+                const mouseY = e.clientY - rect.top;
+
+                
+                posX += mouseX * (1 - newScale / scale);
+                posY += mouseY * (1 - newScale / scale);
+
+                scale = newScale;
+                updateTransform();
+            });
+
+            
+            overlay.addEventListener('mousedown', (e) => {
+                if (e.target === overlay) return;
+                isDragging = true;
+                startX = e.clientX - posX;
+                startY = e.clientY - posY;
+                overlay.classList.add('dragging');
+            });
+
+            window.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+                posX = e.clientX - startX;
+                posY = e.clientY - startY;
+                updateTransform();
+            });
+
+            window.addEventListener('mouseup', () => {
+                isDragging = false;
+                overlay.classList.remove('dragging');
+            });
+
+            function updateTransform() {
+                element.style.transform = `translate(${posX}px, ${posY}px) scale(${scale})`;
+            }
+        },
+
+        
+        popupWindowUtils: {
+            
+            create: function(options) {
+                
+                const config = {
+                    title: 'Popup Window',
+                    content: '',         
+                    x: 100,              
+                    y: 100,              
+                    minWidth: 300,       
+                    maxWidth: '80%',     
+                    maxHeight: '80%',    
+                    closeOnClickOutside: true,
+                    closeOnEsc: true,
+                    onClose: null,       
+                    className: ''        
+                };
+
+                
+                Object.assign(config, options);
+
+                
+                if (config.className) {
+                    const existingPopup = document.querySelector(`.popup-window.${config.className}`);
+                    if (existingPopup) {
+                        document.body.removeChild(existingPopup);
+                    }
+                }
+
+                
+                const popup = document.createElement('div');
+                popup.className = `popup-window ${config.className}`.trim();
+
+                
+                const titleBar = document.createElement('div');
+                titleBar.className = 'popup-window-title';
+                titleBar.textContent = config.title;
+
+                
+                const closeButton = document.createElement('button');
+                closeButton.className = 'popup-window-close';
+                closeButton.innerHTML = '&times;';
+
+                
+                titleBar.appendChild(closeButton);
+
+                
+                const contentContainer = document.createElement('div');
+                contentContainer.className = 'popup-window-content';
+
+                
+                if (typeof config.content === 'string') {
+                    contentContainer.innerHTML = config.content;
+                } else if (config.content instanceof Element) {
+                    contentContainer.appendChild(config.content);
+                }
+
+                
+                popup.appendChild(titleBar);
+                popup.appendChild(contentContainer);
+
+                
+                popup.style.minWidth = typeof config.minWidth === 'number' ? `${config.minWidth}px` : config.minWidth;
+                popup.style.maxWidth = typeof config.maxWidth === 'number' ? `${config.maxWidth}px` : config.maxWidth;
+                popup.style.maxHeight = typeof config.maxHeight === 'number' ? `${config.maxHeight}px` : config.maxHeight;
+
+                
+                document.body.appendChild(popup);
+
+                
+                const popupRect = popup.getBoundingClientRect();
+                const windowWidth = window.innerWidth;
+                const windowHeight = window.innerHeight;
+
+                
+                let left = Math.min(Math.max(config.x, 20), windowWidth - popupRect.width - 20);
+                let top = Math.min(Math.max(config.y, 20), windowHeight - popupRect.height - 20);
+
+                popup.style.left = `${left}px`;
+                popup.style.top = `${top}px`;
+
+                
+                const closePopup = () => {
+                    if (document.body.contains(popup)) {
+                        document.body.removeChild(popup);
+                        if (typeof config.onClose === 'function') {
+                            config.onClose();
+                        }
+                    }
+                };
+
+                closeButton.addEventListener('click', closePopup);
+
+                
+                if (config.closeOnEsc) {
+                    const escHandler = (e) => {
+                        if (e.key === 'Escape' && document.body.contains(popup)) {
+                            closePopup();
+                            document.removeEventListener('keydown', escHandler);
+                        }
+                    };
+                    document.addEventListener('keydown', escHandler);
+                }
+
+                
+                if (config.closeOnClickOutside) {
+                    const outsideClickHandler = (e) => {
+                        if (popup && !popup.contains(e.target) && document.body.contains(popup)) {
+                            closePopup();
+                            document.removeEventListener('mousedown', outsideClickHandler);
+                        }
+                    };
+
+                    
+                    setTimeout(() => {
+                        document.addEventListener('mousedown', outsideClickHandler);
+                    }, 100);
+                }
+
+                
+                let isDragging = false;
+                let offsetX = 0;
+                let offsetY = 0;
+
+                titleBar.addEventListener('mousedown', (e) => {
+                    
+                    if (e.target !== closeButton) {
+                        isDragging = true;
+                        offsetX = e.clientX - popup.getBoundingClientRect().left;
+                        offsetY = e.clientY - popup.getBoundingClientRect().top;
+                        popup.classList.add('dragging');
+                    }
+                });
+
+                const mouseMoveHandler = (e) => {
+                    if (isDragging) {
+                        let newLeft = e.clientX - offsetX;
+                        let newTop = e.clientY - offsetY;
+
+                        
+                        newLeft = Math.max(0, Math.min(windowWidth - popupRect.width, newLeft));
+                        newTop = Math.max(0, Math.min(windowHeight - popupRect.height, newTop));
+
+                        popup.style.left = `${newLeft}px`;
+                        popup.style.top = `${newTop}px`;
+                    }
+                };
+
+                const mouseUpHandler = () => {
+                    if (isDragging) {
+                        isDragging = false;
+                        popup.classList.remove('dragging');
+                    }
+                };
+
+                document.addEventListener('mousemove', mouseMoveHandler);
+                document.addEventListener('mouseup', mouseUpHandler);
+
+                
+                return {
+                    element: popup,
+                    contentElement: contentContainer,
+                    close: closePopup,
+                    setTitle: (title) => {
+                        titleBar.textContent = title;
+                        titleBar.appendChild(closeButton); 
+                    },
+                    setContent: (content) => {
+                        contentContainer.innerHTML = '';
+                        if (typeof content === 'string') {
+                            contentContainer.innerHTML = content;
+                        } else if (content instanceof Element) {
+                            contentContainer.appendChild(content);
+                        }
+                    },
+                    setPosition: (x, y) => {
+                        let newLeft = Math.min(Math.max(x, 0), windowWidth - popupRect.width);
+                        let newTop = Math.min(Math.max(y, 0), windowHeight - popupRect.height);
+                        popup.style.left = `${newLeft}px`;
+                        popup.style.top = `${newTop}px`;
+                    },
+                    
+                    destroy: () => {
+                        document.removeEventListener('mousemove', mouseMoveHandler);
+                        document.removeEventListener('mouseup', mouseUpHandler);
+                        if (document.body.contains(popup)) {
+                            document.body.removeChild(popup);
+                        }
+                    }
+                };
+            }
+        }
+    };
+</script>
+<style>
+     
+    .code-rendered-diagram {
+        max-width: 80% !important;
+        height: auto;
+        position: relative;
+
+        svg {
+            max-width: 100%;
+            height: auto;
+        }
+    }
+
+    .code-rendered-diagram-copy-button,
+    .code-rendered-diagram-fullscreen-button {
+        position: absolute;
+        top: 20px;
+        transform: translateY(-10px);
+        transition: all 0.2s ease;
+        background-color: #f0f0f0;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        padding: 0 0.3rem;
+        margin: 0 0 0 0.6rem;
+        color: #333;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        font-size: 0.6rem;
+        line-height: 1.8;
+        cursor: pointer;
+        font-family: "Maple Mono NF CN";
+        opacity: 0;
+    }
+
+    .code-rendered-diagram-copy-button {
+        right: 10px;
+    }
+
+    .code-rendered-diagram-fullscreen-button {
+        right: 100px;
+    }
+
+    .code-rendered-diagram:hover .code-rendered-diagram-copy-button,
+    .code-rendered-diagram:hover .code-rendered-diagram-fullscreen-button {
+        opacity: 1;
+    }
+
+    .fullscreen-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: #FBFBFB;
+         
+        z-index: 99999;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .fullscreen-overlay.active {
+        display: flex;
+    }
+
+    .fullscreen-overlay img,
+    .fullscreen-overlay svg {
+        max-width: 90%;
+        max-height: 90%;
+        object-fit: contain;
+        cursor: move;
+        transition: transform 0.1s ease-out;
+        transform-origin: center center;
+    }
+
+    .fullscreen-overlay svg {
+        user-select: none;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+    }
+
+    .fullscreen-overlay.dragging {
+        cursor: move;
+    }
+
+    .fullscreen-exit-button {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        background-color: #f0f0f0;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+        color: #666;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        font-size: 0.8rem;
+        line-height: 1.8;
+        cursor: pointer;
+        font-family: "Maple Mono NF CN";
+        transition: all 0.2s ease;
+        z-index: 100000;
+    }
+
+    .fullscreen-exit-button:hover {
+        background-color: #e0e0e0;
+        color: #333;
+    }
+
+     
+    .popup-window {
+        position: fixed;
+        z-index: 10000;
+        background-color: #f8f8f8;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        transition: box-shadow 0.3s ease;
+    }
+
+    .popup-window.dragging {
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+        opacity: 0.95;
+    }
+
+    .popup-window-title {
+        background-color: #e8e8e8;
+        padding: 8px 12px;
+        font-weight: bold;
+        border-bottom: 1px solid #ddd;
+        cursor: move;
+        user-select: none;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        color: #333;
+        font-family: "Maple Mono NF CN", monospace;
+        font-size: 0.9rem;
+    }
+
+    .popup-window-close {
+        background: none;
+        border: none;
+        font-size: 1.2rem;
+        line-height: 1;
+        cursor: pointer;
+        color: #666;
+        padding: 0 4px;
+        margin: -4px -4px 0 0;
+        transition: color 0.2s ease;
+    }
+
+    .popup-window-close:hover {
+        color: #333;
+    }
+
+    .popup-window-content {
+        overflow: auto;
+        padding: 10px;
+        font-size: 0.9rem;
+    }
+
+     
+    .popup-window.source-code-viewer .popup-window-content {
+        font-family: "Maple Mono NF CN", monospace;
+    }
+
+    .popup-window.source-code-viewer .popup-window-content pre {
+        margin: 0;
+        white-space: pre-wrap;
+    }
+
+    .popup-window.source-code-viewer .popup-window-content code {
+        font-family: "Maple Mono NF CN", monospace;
+        color: #333;
+    }
+</style>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        
+        const plantumlBlocks = document.querySelectorAll('pre code.language-plantuml');
+        if (!plantumlBlocks.length) return;
+
+        
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/plantuml-encoder@1.4.0/dist/plantuml-encoder.min.js';
+
+        
+        script.onload = () => {
+            const plantuml_theme = `
+scale 5
+skinparam shadowing false
+skinparam BackgroundColor transparent
+skinparam UsecaseBackgroundColor #white
+skinparam classBackgroundColor #white
+skinparam ActivityBackgroundColor #white
+skinparam ActorBackgroundColor #white
+skinparam participantBackgroundColor #white
+    `.trim();
+
+            plantumlBlocks.forEach(codeBlock => {
+                
+                const container = window.diagramRenderUtils.createDiagramContainer();
+
+                
+                const img = document.createElement('img');
+                img.className = 'code-rendered-diagram-img';
+                img.style.display = 'block';
+                img.alt = 'PlantUML Diagram';
+
+                
+                const fullCode = `${plantuml_theme}\n\n${codeBlock.textContent}`;
+                img.src = 'https://www.plantuml.com/plantuml/svg/' + plantumlEncoder.encode(fullCode);
+
+                
+                const copyButton = window.diagramRenderUtils.createCopyButton();
+                window.diagramRenderUtils.setupCopyButton(copyButton, fullCode);
+
+                
+                window.diagramRenderUtils.setupShowSourceCode(img, fullCode);
+
+                
+                const fullscreenButton = window.diagramRenderUtils.createFullscreenButton();
+                window.diagramRenderUtils.setupFullscreenButton(fullscreenButton, img, true);
+
+                
+                
+
+                
+                container.appendChild(img);
+                container.appendChild(fullscreenButton);
+                container.appendChild(copyButton);
+                codeBlock.parentElement.replaceWith(container);
+            });
+        };
+
+        
+        document.head.appendChild(script);
+    });
+</script>
+
+  
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        
+        const mermaidBlocks = document.querySelectorAll('pre code.language-mermaid');
+        if (!mermaidBlocks.length) return;
+
+        
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/mermaid@11.6.0/dist/mermaid.min.js';
+
+        
+        script.onload = () => {
+            
+            mermaid.initialize({
+                startOnLoad: false,
+                securityLevel: 'loose',
+                
+                
+                
+                theme: 'neutral',
+                
+                
+            });
+
+            
+            mermaidBlocks.forEach((codeBlock, index) => {
+                
+                const container = window.diagramRenderUtils.createDiagramContainer();
+
+                
+                const renderDiv = document.createElement('div');
+                renderDiv.id = `mermaid-diagram-${index}`;
+                renderDiv.style.background = 'transparent';
+
+                
+                const code = codeBlock.textContent.trim();
+
+                try {
+                    
+                    mermaid.render(`mermaid-svg-${index}`, code).then(result => {
+                        renderDiv.innerHTML = result.svg;
+
+                        
+                        const svg = renderDiv.querySelector('svg');
+                        if (svg) {
+                            svg.style.backgroundColor = 'transparent';
+                            
+                            svg.querySelectorAll('[fill="#ffffff"],[fill="white"],[style*="fill: white"]')
+                                .forEach(el => {
+                                    if (el.tagName !== 'svg') {
+                                        el.setAttribute('fill', 'transparent');
+                                    }
+                                });
+                        }
+                    });
+                } catch (error) {
+                    console.error('Mermaid渲染错误:', error);
+                    renderDiv.innerHTML = `<div style="color:red;border:1px solid red;padding:10px;">
+                        Mermaid渲染错误: ${error.message}
+                    </div>`;
+                }
+
+                
+                const copyButton = window.diagramRenderUtils.createCopyButton();
+                window.diagramRenderUtils.setupCopyButton(copyButton, code);
+
+                
+                window.diagramRenderUtils.setupShowSourceCode(renderDiv, code);
+
+                
+                const fullscreenButton = window.diagramRenderUtils.createFullscreenButton();
+                window.diagramRenderUtils.setupFullscreenButton(fullscreenButton, renderDiv, false);
+
+                
+                container.appendChild(renderDiv);
+                container.appendChild(fullscreenButton);
+                container.appendChild(copyButton);
+
+                
+                const pre = codeBlock.closest('pre');
+                pre.insertAdjacentElement('afterend', container);
+                pre.remove();
+            });
+        };
+
+        
+        document.head.appendChild(script);
+    });
+</script>
+
+  
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        
+        const DIAGRAM_MAP = new Map([
+            ['plantuml_kroki', 'plantuml'],
+            ['mermaid_kroki', 'mermaid'],
+            ['graphviz', 'graphviz'],
+            ['blockdiag', 'blockdiag'],
+            ['seqdiag', 'seqdiag'],
+            ['actdiag', 'actdiag'],
+            ['packetdiag', 'packetdiag'],
+            ['database', 'dbml'],
+            ['dbml', 'dbml'],
+            ['vega', 'vega']
+        ]);
+
+        
+        const blocks = [];
+        document.querySelectorAll('pre code[class]').forEach(block => {
+            if (block.dataset.kroki) return;
+            const lang = [...block.classList].find(c => DIAGRAM_MAP.has(c.split('-')[1]));
+            if (lang) {
+                block.dataset.kroki = 'processed';
+                blocks.push({ block, api: DIAGRAM_MAP.get(lang.split('-')[1]) });
+            }
+        });
+
+        if (!blocks.length) return;
+
+        
+        const CONCURRENCY = 6;
+        const queue = blocks.slice();
+
+        (async function processQueue() {
+            const workers = Array(Math.min(CONCURRENCY, queue.length))
+                .fill()
+                .map(async () => {
+                    while (queue.length) {
+                        const { block, api } = queue.pop();
+                        await renderBlock(block, api);
+                    }
+                });
+            await Promise.all(workers);
+        })();
+
+        async function renderBlock(block, api) {
+            const pre = block.closest('pre');
+            try {
+                const code = block.textContent.trim();
+                if (!code) {
+                    pre.style.border = '2px solid orange';
+                    return;
+                }
+
+                const res = await fetch(`https://kroki.io/${api}/svg`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain' },
+                    body: code
+                });
+
+                if (!res.ok) throw new Error(`${await res.text()} (HTTP ${res.status})`);
+
+                
+                const svg = window.diagramRenderUtils.createDiagramContainer();
+                svg.innerHTML = window.diagramRenderUtils.makeSVGTransparent(await res.text());
+
+                
+                const fullscreenButton = window.diagramRenderUtils.createFullscreenButton();
+                window.diagramRenderUtils.setupFullscreenButton(fullscreenButton, svg, false);
+                svg.appendChild(fullscreenButton);
+
+                
+                const copyButton = window.diagramRenderUtils.createCopyButton();
+                window.diagramRenderUtils.setupCopyButton(copyButton, code);
+                svg.appendChild(copyButton);
+
+                
+                window.diagramRenderUtils.setupShowSourceCode(svg, code);
+
+                pre.insertAdjacentElement('afterend', svg);
+
+                
+                pre.remove();
+            } catch (err) {
+                console.error(`[Kroki] 渲染失败: ${err.message}`);
+                pre.style.border = '2px solid red';
+                pre.title = err.message;
+            }
+        }
+    });
+</script>
+
+
+  
+
+  <div id="search-modal">
+  <input type="text" id="modal-search-input" placeholder="输入关键词搜索..." aria-label="搜索框" autocomplete="off">
+  <div id="modal-search-debug" style="margin-bottom: 10px; color: #999;"></div>
+  <div id="modal-search-results"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2"></script>
+
+<script>
+  function debug(text) {
+      document.getElementById('modal-search-debug').textContent = text;
+  }
+  function showpages() {
+    debug("当前本站共有 " + searchIndex.length + " 篇文章");
+  }
+
+  let searchIndex = [];
+  
+  
+    
+  
+
+  
+    searchIndex.push({
+      title: "\"GDB 调试:从入门实践到原理 | [转载](https://mp.weixin.qq.com/s/XO462ijLN3i0q7QKcb-f7Q)\"",
+      permalink: "\"/%E6%B2%99%E6%B5%B7%E6%8B%BE%E8%B4%9D/gdb%E8%B0%83%E8%AF%95-%E4%BB%8E%E5%85%A5%E9%97%A8%E5%AE%9E%E8%B7%B5%E5%88%B0%E5%8E%9F%E7%90%86/\"",
+      
+      categories: "[\"沙海拾贝\"]",
+      tags: "[\"gdb\",\"tools\"]",
+      series: "[\"tools\"]",
+      date: "\"2025-04-23\""
+    });
+  
+
+  showpages()
+
+  const options = {
+    includeScore: true,
+    threshold: 0.6,
+    keys: [
+      { name: 'title', weight: 0.7 },
+      { name: 'content', weight: 0.3 },
+      { name: 'tags', weight: 0.5 },
+      { name: 'categories', weight: 0.5 },
+      { name: 'series', weight: 0.5 }
+    ]
+  };
+
+  const fuse = new Fuse(searchIndex, options);
+
+  document.addEventListener('keydown', function(event) {
+    if (event.ctrlKey && event.key === 'k') {
+      event.preventDefault();
+      toggleSearchModal();
+    } else if (event.key === 'Escape') {
+      document.getElementById('modal-search-input').value = "";
+      closeSearchModal();
+      var res = document.getElementById('modal-search-results');
+      while (res.firstChild) {
+        res.removeChild(res.firstChild);
+      }
+      showpages();
+    }
+  });
+
+  function toggleSearchModal() {
+    const modal = document.getElementById('search-modal');
+    if (modal.style.display === 'none') {
+      modal.style.display = 'block';
+      document.getElementById('modal-search-input').focus();
+    } else {
+      modal.style.display = 'none';
+    }
+  }
+
+  function closeSearchModal() {
+    const modal = document.getElementById('search-modal');
+    modal.style.display = 'none';
+  }
+
+  document.getElementById('modal-search-input').addEventListener('input', function(e) {
+    const searchTerm = e.target.value.trim();
+    const resultsContainer = document.getElementById('modal-search-results');
+    resultsContainer.innerHTML = '';
+
+    if (searchTerm === '') {
+      showpages()
+      return;
+    }
+
+    const results = fuse.search(searchTerm);
+
+    results.sort((a, b) => new Date(b.item.date) - new Date(a.item.date));
+
+    if (results.length === 0) {
+      showpages()
+      resultsContainer.innerHTML = '<p>没有找到相关文章</p>';
+      return;
+    } else {
+      debug("共找到 " + results.length + " 篇匹配的文章")
+    }
+
+    results.forEach(result => {
+      const item = result.item;
+      const resultItem = document.createElement('div');
+      resultItem.className = 'modal-search-result-item';
+
+      const date = document.createElement('span');
+      date.textContent = item.date.replace(/^"|"$/g, '') + '   ';
+      date.className = 'modal-search-result-date';
+
+      const link = document.createElement('a');
+      link.href = item.permalink.replace(/^"|"$/g, '');
+      link.textContent = item.title.replace(/^"|"$/g, '');
+      link.className = 'modal-search-result-title';
+
+      resultItem.appendChild(date);
+      resultItem.appendChild(link);
+      resultsContainer.appendChild(resultItem);
+    });
+  });
+</script>
+
+<style>
+ 
+#search-modal {
+    display: none;
+    position: fixed;
+    top: 6%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: white;
+    padding: 20px;
+    box-shadow: 0 0 6px rgba(45, 45, 45, 0.5);
+    border-radius: 6px;
+    z-index: 1000;
+    width: 80%;
+    max-width: 600px;
+    text-align: left;
+}
+
+#modal-search-input {
+    width: 100%;
+    padding: 10px;
+    box-sizing: border-box;
+    font-size: 1rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    margin-bottom: 1rem;
+}
+
+#modal-search-results {
+    margin-top: 10px;
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.modal-search-result-item {
+    padding: 0.7rem;
+    margin-bottom: 0.5rem;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    align-items: center;
+}
+
+.modal-search-result-date {
+    color: #666;
+    font-size: 0.9rem;
+    margin-right: 0.5rem;
+    text-wrap: nowrap;
+}
+
+.modal-search-result-title {
+    font-weight: bold;
+    color: #1a73e8;
+    text-decoration: none;
+}
+
+.modal-search-result-title:hover {
+    text-decoration: underline;
+}
+</style>
+
+
+  
+<link rel="stylesheet" href="/css/note_down.min.6f53446a3926929fbd997660313634ca1db4a0566a04ccb07965d98c77e930d8.css">
+
+
+<script src="/js/note_down.min.f712cab3a19c2b6a7f727ecc52c9666678bba69993e36c2ada9d44bfbf4f5b13.js" defer></script>
+
+  
+  <hr />
+  © 
+<a href="https://codebearjourney.top"  target="_blank" rel="noopener noreferrer" >Sachi</a>
+ 2025 &ndash; 2025 | 🎨
+<a href="https://github.com/captainwc/captainwc.github.io/tree/main/themes/ksimple"  target="_blank" rel="noopener noreferrer" >KSimple</a>
+  
+
+</footer>
+</body>
+
+</html>
+
