@@ -2,7 +2,7 @@ name: Deploy Hugo to Public Branch
 
 on:
   push:
-    branches: [ "master" ]  # 监听main分支的推送
+    branches: [ "master" ]  # 监听master分支的推送
 
 jobs:
   deploy:
@@ -17,7 +17,7 @@ jobs:
       - name: Setup Hugo
         uses: peaceiris/actions-hugo@v2
         with:
-          hugo-version: "0.143.1"  # 指定Hugo版本
+          hugo-version: "0.146.7"  # 指定Hugo版本
           extended: true           # 若主题依赖扩展版则需启用
 
       - name: Build Static Site
