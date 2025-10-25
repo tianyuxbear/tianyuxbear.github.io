@@ -48,5 +48,5 @@ jobs:
           publish_dir: ./public                       # Hugo 生成的目录
           user_name: 'github-actions[bot]'
           user_email: 'github-actions[bot]@users.noreply.github.com'
-          commit_message: '🚀 Deploy from ${{ github.sha }}'
+          commit_message: '🚀 Deploy from commit'
           force_orphan: true
