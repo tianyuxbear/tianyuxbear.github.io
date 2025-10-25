@@ -1,0 +1,52 @@
+name: Deploy Hugo Site to GitHub Pages
+
+on:
+  push:
+    branches: 
+      - master                    # 监听 master 分支推送
+  workflow_dispatch:              # 允许手动触发部署
+
+# 设置权限（重要！）
+permissions:
+  contents: write                 # 允许写入内容
+  pages: write                    # 允许写入 Pages
+  id-token: write                 # 允许 OIDC token
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      # 1. 检出代码
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive   # 递归拉取 Hugo 主题子模块
+          fetch-depth: 0          # 拉取完整历史
+
+      # 2. 设置 Hugo 环境
+      - name: Setup Hugo
+        uses: peaceiris/actions-hugo@v3
+        with:
+          hugo-version: "latest"   # 使用最新版本
+          extended: true           # 启用扩展版
+
+      # 3. 构建静态网站
+      - name: Build Hugo site
+        run: hugo --minify --gc    # 构建并压缩
+
+      # 4. 生成 CNAME 文件
+      - name: Generate CNAME
+        run: echo "codebearjourney.top" > public/CNAME
+
+      # 5. 部署到 GitHub Pages（使用 GITHUB_TOKEN）
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}  # 使用自动生成的 token
+          publish_branch: public                      # 部署到 public 分支
+          publish_dir: ./public                       # Hugo 生成的目录
+          user_name: 'github-actions[bot]'
+          user_email: 'github-actions[bot]@users.noreply.github.com'
+          commit_message: '🚀 Deploy from ${{ github.sha }}'
+          force_orphan: true
