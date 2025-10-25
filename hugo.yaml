@@ -1,0 +1,162 @@
+# 基础配置信息
+title: "codebear"
+baseURL: "https://codebearjourney.top"
+languageCode: zh
+defaultContentLanguage: zh
+theme: ["PaperMod"]
+enableRobotsTXT: true                 # 生成robots.txt文件，用于SEO
+buildDrafts: false                    # 不构建草稿文章
+buildFuture: false                    # 不构建未来日期的文章
+buildExpired: false                   # 不构建已过期的文章
+
+# ========== 启用 HTML 渲染 ==========
+markup:
+  goldmark:
+    renderer:
+      unsafe: true                # 允许渲染原始 HTML
+  highlight:
+    noClasses: false
+    codeFences: true
+    guessSyntax: true
+
+# 压缩优化
+minify:
+  disableXML: true      # 不压缩XML文件
+  minifyOutput: true    # 压缩HTML/CSS/JS输出
+
+outputs:
+  home:
+    - HTML
+    - RSS
+    - JSON
+
+taxonomies:
+  category: categories
+  tag: tags
+  series: series
+
+# 核心参数配置信息
+params:
+  env: production        # 环境（production启用分析、OpenGraph等）
+  title: "codebear"      # 站点标题
+  description: "codebear的个人技术博客，分享编程心得和项目经验"     # 站点描述（用于SEO）
+  keywords: [技术博客,C++,Rust,Python,AI Infra]  # 关键词
+  author: Tianyu Xiong            # 作者名
+  images: ["/images/peace.png"]     # 默认社交媒体分享图片
+  DateFormat: "Jan 2, 2006"  # 日期格式
+
+  # 主题外观
+  defaultTheme: auto           # 默认主题：auto/dark/light
+  disableThemeToggle: false    # 是否禁用主题切换按钮
+
+  # 文章功能开关
+  ShowReadingTime: true        # 显示阅读时间
+  ShowShareButtons: true       # 显示分享按钮
+  ShowPostNavLinks: true       # 显示上一篇/下一篇导航
+  ShowBreadCrumbs: true        # 显示面包屑导航
+  ShowCodeCopyButtons: true   # 代码块复制按钮
+  ShowWordCount: true          # 显示字数统计
+  ShowRssButtonInSectionTermList: true  # 在分类/标签页显示RSS
+  UseHugoToc: true            # 使用Hugo的目录功能
+  disableSpecial1stPost: false # 不对首篇文章特殊处理
+  disableScrollToTop: false    # 启用返回顶部按钮
+  comments: false              # 评论功能
+  hidemeta: false             # 隐藏文章元信息
+  hideSummary: false          # 隐藏文章摘要
+  showtoc: true               # 显示目录
+  tocopen: false              # 目录默认展开
+
+  assets:
+    favicon: "/favicon/favicon.ico"         # 网站图标
+    favicon16x16: "<...>"               # 16x16图标
+    favicon32x32: "<...>"               # 32x32图标
+    apple_touch_icon: "/favicon/apple-touch-icon.png"           # iOS图标
+    safari_pinned_tab: "<...>"          # Safari固定标签图标
+
+  label:
+    text: "Sachi's Blog"               # 首页按钮文字
+    icon: "/images/avatar.png"        # 首页图标
+    iconHeight: 35                   # 图标高度
+  # 个人资料模式
+  profileMode:
+    enabled: true          # 启用个人资料首页模式
+    title: "Stay Hungry, Stay Foolish 🎓"       # 标题
+    subtitle: "嗨！欢迎来到 codebear 的技术空间 🎉，我是一个还在摸索中的技术学习者，这里记录我的学习笔记、踩坑经历和一些有趣的发现。"          # 副标题
+    imageUrl: "/images/avatar.png"        # 头像URL
+    imageWidth: 120          # 头像宽度
+    imageHeight: 120         # 头像高度
+    # buttons:                 # 按钮列表
+    #   - name: Posts
+    #     url: posts
+  # 首页信息模式
+  # homeInfoParams:
+  #   Title: "Stay Hungry, Stay Foolish 🎓" 
+  #   Content: "嗨！欢迎来到 codebear 的技术空间 🎉，我是一个还在摸索中的技术学习者，这里记录我的学习笔记、踩坑经历和一些有趣的发现。" 
+  # 社交图标
+  socialIcons:
+    - name: github
+      url: "https://codebearjourney.top"
+    - name: zhihu
+      url: "https://www.zhihu.com/people/gu-xi-yu-52-9"
+    - name: email
+      url: "mailto:tianyuxbear@gmail.com"
+
+  analytics:
+    google:
+      SiteVerificationTag: "XYZabc"    # Google验证标签
+    bing:
+      SiteVerificationTag: "XYZabc"    # Bing验证标签
+    yandex:
+      SiteVerificationTag: "XYZabc"    # Yandex验证标签
+
+  cover:
+    hidden: true           # 隐藏封面但保留结构化数据
+    hiddenInList: true     # 列表页隐藏
+    hiddenInSingle: true   # 文章页隐藏
+
+  fuseOpts:
+    isCaseSensitive: false         # 不区分大小写
+    shouldSort: true               # 排序结果
+    location: 0                    # 匹配位置权重
+    distance: 1000                 # 搜索距离
+    threshold: 0.4                 # 匹配阈值（越小越严格）
+    minMatchCharLength: 0          # 最小匹配长度
+    limit: 10                      # 返回结果数量
+    keys: ["title", "summary", "content"]  # 搜索字段
+
+menu:
+  main:
+    - identifier: home
+      name: 主页
+      url: /
+      weight: 5
+
+    - identifier: archives
+      name: 归档
+      url: /archives/
+      weight: 10 
+
+    - identifier: series
+      name: 专栏
+      url: /series/
+      weight: 20
+    
+    - identifier: categories
+      name: 分类
+      url: /categories/
+      weight: 30
+    
+    - identifier: tags
+      name: 标签
+      url: /tags/
+      weight: 40
+    
+    - identifier: search
+      name: 搜索
+      url: /search/
+      weight: 50
+    
+    - identifier: about
+      name: 关于
+      url: /about/
+      weight: 60
