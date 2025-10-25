@@ -1,0 +1,3 @@
+User-agent: *
+Disallow:
+Sitemap: https://codebearjourney.top/sitemap.xml

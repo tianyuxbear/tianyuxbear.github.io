@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>调试 on codebear</title>
+    <link>https://codebearjourney.top/tags/%E8%B0%83%E8%AF%95/</link>
+    <description>Recent content in 调试 on codebear</description>
+    <image>
+      <title>codebear</title>
+      <url>https://codebearjourney.top/images/peace.png</url>
+      <link>https://codebearjourney.top/images/peace.png</link>
+    </image>
+    <generator>Hugo -- 0.152.2</generator>
+    <language>zh</language>
+    <lastBuildDate>Sat, 25 Oct 2025 21:18:14 +0800</lastBuildDate>
+    <atom:link href="https://codebearjourney.top/tags/%E8%B0%83%E8%AF%95/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>GDB调试: 从入门实践到原理</title>
+      <link>https://codebearjourney.top/posts/gdb%E8%B0%83%E8%AF%95-%E4%BB%8E%E5%85%A5%E9%97%A8%E5%AE%9E%E8%B7%B5%E5%88%B0%E5%8E%9F%E7%90%86/</link>
+      <pubDate>Sat, 25 Oct 2025 21:18:14 +0800</pubDate>
+      <guid>https://codebearjourney.top/posts/gdb%E8%B0%83%E8%AF%95-%E4%BB%8E%E5%85%A5%E9%97%A8%E5%AE%9E%E8%B7%B5%E5%88%B0%E5%8E%9F%E7%90%86/</guid>
+      <description>全面介绍 GDB 调试器的使用方法，从基础命令到高级技巧，再到底层实现原理</description>
+    </item>
+  </channel>
+</rss>
