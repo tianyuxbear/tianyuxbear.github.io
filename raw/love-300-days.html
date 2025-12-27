@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>300 Days of Love ❤️ Merry Christmas</title>
+    <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Fira+Code:wght@400;600&family=Noto+Serif+SC:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --heart-red: #ff4d6d;
+            --heart-glow: #ff758f;
+            --snow-white: #ffffff;
+            --christmas-gold: #ffd93d;
+            --deep-night: #0a0a1a;
+            --code-green: #4ade80;
+            --code-blue: #60a5fa;
+            --code-purple: #c084fc;
+            --code-orange: #fb923c;
+        }
+
+        body {
+            min-height: 100vh;
+            background: var(--deep-night);
+            background: radial-gradient(ellipse at top, #1a1a3e 0%, #0a0a1a 50%, #050510 100%);
+            font-family: 'Noto Serif SC', serif;
+            color: var(--snow-white);
+            overflow-x: hidden;
+            cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Ctext y='20' font-size='20'%3E❄️%3C/text%3E%3C/svg%3E"), auto;
+        }
+
+        /* 星空背景 */
+        .stars {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            background-image: 
+                radial-gradient(2px 2px at 20px 30px, rgba(255,255,255,0.8), transparent),
+                radial-gradient(2px 2px at 40px 70px, rgba(255,255,255,0.6), transparent),
+                radial-gradient(2px 2px at 50px 160px, rgba(255,255,255,0.7), transparent),
+                radial-gradient(2px 2px at 90px 40px, rgba(255,255,255,0.5), transparent),
+                radial-gradient(2px 2px at 130px 80px, rgba(255,255,255,0.6), transparent),
+                radial-gradient(3px 3px at 160px 120px, rgba(255,255,255,0.9), transparent),
+                radial-gradient(2px 2px at 200px 50px, rgba(255,255,255,0.7), transparent);
+            background-size: 200px 200px;
+            animation: twinkle 4s ease-in-out infinite alternate;
+        }
+
+        @keyframes twinkle {
+            from { opacity: 0.6; }
+            to { opacity: 1; }
+        }
+
+        /* 雪花容器 */
+        .snowflakes {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 100;
+            overflow: hidden;
+        }
+
+        .snowflake {
+            position: absolute;
+            top: -50px;
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 1rem;
+            animation: fall linear infinite;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+        }
+
+        @keyframes fall {
+            0% {
+                transform: translateY(-50px) rotate(0deg);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(100vh) rotate(360deg);
+                opacity: 0.3;
+            }
+        }
+
+        /* 主容器 */
+        .container {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 20px;
+            position: relative;
+            z-index: 10;
+        }
+
+        /* 圣诞装饰 */
+        .christmas-lights {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 30px;
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            padding-top: 10px;
+            z-index: 50;
+        }
+
+        .light {
+            width: 12px;
+            height: 18px;
+            border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+            animation: glow 1.5s ease-in-out infinite alternate;
+        }
+
+        .light:nth-child(5n+1) { background: #ff4757; animation-delay: 0s; }
+        .light:nth-child(5n+2) { background: #2ed573; animation-delay: 0.3s; }
+        .light:nth-child(5n+3) { background: #ffa502; animation-delay: 0.6s; }
+        .light:nth-child(5n+4) { background: #1e90ff; animation-delay: 0.9s; }
+        .light:nth-child(5n+5) { background: #ff6b81; animation-delay: 1.2s; }
+
+        @keyframes glow {
+            0% { opacity: 0.4; transform: scale(0.9); box-shadow: 0 0 5px currentColor; }
+            100% { opacity: 1; transform: scale(1); box-shadow: 0 0 20px currentColor, 0 0 30px currentColor; }
+        }
+
+        /* 日期标题 */
+        .date-header {
+            text-align: center;
+            margin-bottom: 30px;
+            animation: fadeInDown 1s ease-out;
+        }
+
+        .date-header h2 {
+            font-family: 'Dancing Script', cursive;
+            font-size: 2.5rem;
+            color: var(--christmas-gold);
+            text-shadow: 0 0 20px rgba(255, 217, 61, 0.5);
+            margin-bottom: 10px;
+        }
+
+        .date-header p {
+            font-size: 1rem;
+            color: rgba(255, 255, 255, 0.7);
+            letter-spacing: 3px;
+        }
+
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* 大爱心 */
+        .heart-container {
+            position: relative;
+            margin: 20px 0 40px;
+        }
+
+        .main-heart {
+            font-size: 120px;
+            color: var(--heart-red);
+            animation: heartbeat 1.2s ease-in-out infinite;
+            filter: drop-shadow(0 0 30px var(--heart-glow));
+            cursor: pointer;
+            transition: transform 0.3s;
+        }
+
+        .main-heart:hover {
+            transform: scale(1.1);
+        }
+
+        @keyframes heartbeat {
+            0%, 100% { transform: scale(1); }
+            15% { transform: scale(1.15); }
+            30% { transform: scale(1); }
+            45% { transform: scale(1.1); }
+            60% { transform: scale(1); }
+        }
+
+        /* 300天计数器 */
+        .days-counter {
+            text-align: center;
+            margin-bottom: 50px;
+            animation: fadeIn 1.5s ease-out 0.5s both;
+        }
+
+        .days-number {
+            font-family: 'Fira Code', monospace;
+            font-size: 8rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--heart-red), var(--christmas-gold), var(--heart-glow));
+            background-size: 200% 200%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: gradientShift 3s ease infinite;
+            text-shadow: none;
+            filter: drop-shadow(0 0 30px rgba(255, 77, 109, 0.5));
+        }
+
+        @keyframes gradientShift {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+
+        .days-label {
+            font-size: 1.5rem;
+            color: rgba(255, 255, 255, 0.8);
+            letter-spacing: 8px;
+            margin-top: -10px;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* 代码情书 */
+        .code-love-letter {
+            background: linear-gradient(145deg, rgba(20, 20, 40, 0.9), rgba(10, 10, 30, 0.95));
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 30px;
+            max-width: 700px;
+            width: 90%;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.9rem;
+            line-height: 1.8;
+            box-shadow: 
+                0 25px 50px -12px rgba(0, 0, 0, 0.5),
+                0 0 0 1px rgba(255, 255, 255, 0.05),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            animation: fadeIn 2s ease-out 1s both;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .code-love-letter::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 40px;
+            background: linear-gradient(90deg, rgba(255,77,109,0.1), rgba(255,217,61,0.1), rgba(96,165,250,0.1));
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .window-controls {
+            position: absolute;
+            top: 12px;
+            left: 15px;
+            display: flex;
+            gap: 8px;
+        }
+
+        .window-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .window-dot:nth-child(1) { background: #ff5f56; }
+        .window-dot:nth-child(2) { background: #ffbd2e; }
+        .window-dot:nth-child(3) { background: #27ca3f; }
+
+        .code-content {
+            margin-top: 20px;
+        }
+
+        .code-line {
+            opacity: 0;
+            animation: typeLine 0.5s ease-out forwards;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        @keyframes typeLine {
+            from { opacity: 0; transform: translateX(-10px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .comment { color: #6b7280; font-style: italic; }
+        .keyword { color: var(--code-purple); }
+        .function { color: var(--code-blue); }
+        .string { color: var(--code-green); }
+        .number { color: var(--code-orange); }
+        .variable { color: #f472b6; }
+        .operator { color: #fbbf24; }
+        .class-name { color: #22d3ee; }
+
+        /* 底部签名 */
+        .signature {
+            text-align: center;
+            margin-top: 50px;
+            animation: fadeIn 2s ease-out 3s both;
+        }
+
+        .signature p {
+            font-family: 'Dancing Script', cursive;
+            font-size: 2rem;
+            color: var(--christmas-gold);
+            text-shadow: 0 0 15px rgba(255, 217, 61, 0.4);
+        }
+
+        .signature .emoji-row {
+            font-size: 2rem;
+            margin-top: 15px;
+            animation: bounce 2s ease-in-out infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        /* 爱心粒子 */
+        .heart-particles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        .particle {
+            position: absolute;
+            font-size: 20px;
+            animation: floatUp 4s ease-out forwards;
+            opacity: 0;
+        }
+
+        @keyframes floatUp {
+            0% {
+                opacity: 0;
+                transform: translateY(0) scale(0.5) rotate(0deg);
+            }
+            20% {
+                opacity: 1;
+            }
+            100% {
+                opacity: 0;
+                transform: translateY(-100vh) scale(1) rotate(360deg);
+            }
+        }
+
+        /* 响应式 */
+        @media (max-width: 768px) {
+            .days-number {
+                font-size: 5rem;
+            }
+            
+            .main-heart {
+                font-size: 80px;
+            }
+            
+            .code-love-letter {
+                font-size: 0.75rem;
+                padding: 20px;
+            }
+
+            .date-header h2 {
+                font-size: 1.8rem;
+            }
+        }
+
+        /* 点击彩蛋 */
+        .easter-egg {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            font-size: 2rem;
+            cursor: pointer;
+            animation: swing 2s ease-in-out infinite;
+            z-index: 200;
+        }
+
+        @keyframes swing {
+            0%, 100% { transform: rotate(-5deg); }
+            50% { transform: rotate(5deg); }
+        }
+
+        /* 隐藏消息 */
+        .hidden-message {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            background: linear-gradient(135deg, var(--heart-red), var(--heart-glow));
+            padding: 40px 60px;
+            border-radius: 20px;
+            text-align: center;
+            z-index: 1000;
+            transition: transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            box-shadow: 0 30px 60px rgba(255, 77, 109, 0.4);
+        }
+
+        .hidden-message.show {
+            transform: translate(-50%, -50%) scale(1);
+        }
+
+        .hidden-message h3 {
+            font-family: 'Dancing Script', cursive;
+            font-size: 2.5rem;
+            margin-bottom: 15px;
+        }
+
+        .hidden-message p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            font-size: 1.5rem;
+            cursor: pointer;
+            opacity: 0.7;
+            transition: opacity 0.3s;
+        }
+
+        .close-btn:hover {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <!-- 星空 -->
+    <div class="stars"></div>
+
+    <!-- 雪花 -->
+    <div class="snowflakes" id="snowflakes"></div>
+
+    <!-- 爱心粒子 -->
+    <div class="heart-particles" id="heartParticles"></div>
+
+    <!-- 圣诞灯串 -->
+    <div class="christmas-lights">
+        <div class="light"></div>
+        <div class="light"></div>
+        <div class="light"></div>
+        <div class="light"></div>
+        <div class="light"></div>
+        <div class="light"></div>
+        <div class="light"></div>
+        <div class="light"></div>
+        <div class="light"></div>
+        <div class="light"></div>
+        <div class="light"></div>
+        <div class="light"></div>
+        <div class="light"></div>
+        <div class="light"></div>
+        <div class="light"></div>
+    </div>
+
+    <!-- 主容器 -->
+    <div class="container">
+        <!-- 日期标题 -->
+        <div class="date-header">
+            <h2>🎄 Merry Christmas 🎄</h2>
+            <p>2025.12.25</p>
+        </div>
+
+        <!-- 大爱心 -->
+        <div class="heart-container">
+            <div class="main-heart" id="mainHeart" title="点击我！">❤️</div>
+        </div>
+
+        <!-- 300天计数 -->
+        <div class="days-counter">
+            <div class="days-number" id="daysNumber">0</div>
+            <div class="days-label">DAYS OF LOVE</div>
+        </div>
+
+        <!-- 代码情书 -->
+        <div class="code-love-letter">
+            <div class="window-controls">
+                <div class="window-dot"></div>
+                <div class="window-dot"></div>
+                <div class="window-dot"></div>
+            </div>
+            <div class="code-content" id="codeContent">
+                <!-- 代码将通过JS动态生成 -->
+            </div>
+        </div>
+
+        <!-- 签名 -->
+        <div class="signature">
+            <p>Forever & Always</p>
+            <div class="emoji-row">🎁 💝 🎄 ⭐ 💫</div>
+        </div>
+    </div>
+
+    <!-- 圣诞彩蛋 -->
+    <div class="easter-egg" id="easterEgg" title="点击有惊喜~">🎅</div>
+
+    <!-- 隐藏消息 -->
+    <div class="hidden-message" id="hiddenMessage">
+        <span class="close-btn" onclick="closeMessage()">×</span>
+        <h3>✨ 圣诞快乐 ✨</h3>
+        <p>愿我们的爱情如这雪花般纯净<br>如这灯火般温暖<br>永远，永远... 💕</p>
+    </div>
+
+    <script>
+        // 创建雪花
+        function createSnowflakes() {
+            const container = document.getElementById('snowflakes');
+            const snowflakeChars = ['❄', '❅', '❆', '✧', '✦', '·'];
+            
+            for (let i = 0; i < 50; i++) {
+                const snowflake = document.createElement('div');
+                snowflake.className = 'snowflake';
+                snowflake.textContent = snowflakeChars[Math.floor(Math.random() * snowflakeChars.length)];
+                snowflake.style.left = Math.random() * 100 + 'vw';
+                snowflake.style.fontSize = (Math.random() * 1 + 0.5) + 'rem';
+                snowflake.style.animationDuration = (Math.random() * 5 + 5) + 's';
+                snowflake.style.animationDelay = Math.random() * 10 + 's';
+                snowflake.style.opacity = Math.random() * 0.7 + 0.3;
+                container.appendChild(snowflake);
+            }
+        }
+
+        // 数字滚动动画
+        function animateNumber(target, duration) {
+            const element = document.getElementById('daysNumber');
+            const start = 0;
+            const increment = target / (duration / 16);
+            let current = start;
+
+            const timer = setInterval(() => {
+                current += increment;
+                if (current >= target) {
+                    current = target;
+                    clearInterval(timer);
+                }
+                element.textContent = Math.floor(current);
+            }, 16);
+        }
+
+        // 代码情书内容
+        const codeLines = [
+            { text: '// ❤️ Love.js - A programmer\'s declaration', class: 'comment' },
+            { text: '', class: '' },
+            { text: '<span class="keyword">class</span> <span class="class-name">Love</span> {', class: '' },
+            { text: '  <span class="keyword">constructor</span>(<span class="variable">you</span>) {', class: '' },
+            { text: '    <span class="keyword">this</span>.<span class="variable">heart</span> = <span class="string">"永远属于你"</span>;', class: '' },
+            { text: '    <span class="keyword">this</span>.<span class="variable">days</span> = <span class="number">300</span>;', class: '' },
+            { text: '    <span class="keyword">this</span>.<span class="variable">feeling</span> = <span class="string">"无限思念"</span>;', class: '' },
+            { text: '  }', class: '' },
+            { text: '', class: '' },
+            { text: '  // 每一天都在爱你', class: 'comment' },
+            { text: '  <span class="function">loveYou</span>() {', class: '' },
+            { text: '    <span class="keyword">while</span> (<span class="keyword">true</span>) {', class: '' },
+            { text: '      <span class="keyword">this</span>.<span class="function">miss</span>(<span class="variable">you</span>);', class: '' },
+            { text: '      <span class="keyword">this</span>.<span class="function">care</span>(<span class="variable">you</span>);', class: '' },
+            { text: '      <span class="keyword">this</span>.<span class="function">protect</span>(<span class="variable">you</span>);', class: '' },
+            { text: '    }', class: '' },
+            { text: '  }', class: '' },
+            { text: '', class: '' },
+            { text: '  // 圣诞节的承诺', class: 'comment' },
+            { text: '  <span class="function">promise</span>() {', class: '' },
+            { text: '    <span class="keyword">return</span> <span class="string">"陪你走过每一个春夏秋冬"</span>;', class: '' },
+            { text: '  }', class: '' },
+            { text: '}', class: '' },
+            { text: '', class: '' },
+            { text: '// 致我最爱的人 🌹', class: 'comment' },
+            { text: '<span class="keyword">const</span> <span class="variable">我们的爱情</span> = <span class="keyword">new</span> <span class="class-name">Love</span>(<span class="string">"你"</span>);', class: '' },
+            { text: '<span class="variable">我们的爱情</span>.<span class="function">loveYou</span>();  <span class="comment">// 永不停止 ❤️</span>', class: '' },
+        ];
+
+        // 逐行显示代码
+        function typeCode() {
+            const container = document.getElementById('codeContent');
+            container.innerHTML = '';
+
+            codeLines.forEach((line, index) => {
+                const lineElement = document.createElement('div');
+                lineElement.className = 'code-line';
+                lineElement.innerHTML = line.text || '&nbsp;';
+                lineElement.style.animationDelay = (index * 0.1 + 2) + 's';
+                container.appendChild(lineElement);
+            });
+        }
+
+        // 创建爱心粒子
+        function createHeartParticle() {
+            const container = document.getElementById('heartParticles');
+            const hearts = ['❤️', '💕', '💖', '💗', '💝', '✨'];
+            
+            const particle = document.createElement('div');
+            particle.className = 'particle';
+            particle.textContent = hearts[Math.floor(Math.random() * hearts.length)];
+            particle.style.left = Math.random() * 100 + 'vw';
+            particle.style.bottom = '-50px';
+            particle.style.fontSize = (Math.random() * 20 + 15) + 'px';
+            container.appendChild(particle);
+
+            setTimeout(() => particle.remove(), 4000);
+        }
+
+        // 点击爱心效果
+        document.getElementById('mainHeart').addEventListener('click', function() {
+            for (let i = 0; i < 10; i++) {
+                setTimeout(createHeartParticle, i * 100);
+            }
+        });
+
+        // 圣诞彩蛋
+        document.getElementById('easterEgg').addEventListener('click', function() {
+            document.getElementById('hiddenMessage').classList.add('show');
+        });
+
+        function closeMessage() {
+            document.getElementById('hiddenMessage').classList.remove('show');
+        }
+
+        // 点击其他地方关闭消息
+        document.addEventListener('click', function(e) {
+            const message = document.getElementById('hiddenMessage');
+            const egg = document.getElementById('easterEgg');
+            if (!message.contains(e.target) && e.target !== egg && message.classList.contains('show')) {
+                closeMessage();
+            }
+        });
+
+        // 初始化
+        window.onload = function() {
+            createSnowflakes();
+            setTimeout(() => animateNumber(300, 2000), 500);
+            typeCode();
+            
+            // 持续产生爱心粒子
+            setInterval(createHeartParticle, 2000);
+        };
+    </script>
+</body>
+</html>
